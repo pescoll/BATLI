@@ -14,7 +14,7 @@ from werkzeug.utils import secure_filename
 import urllib.parse
 
 def allowed_file(filename):
-    ALLOWED_EXTENSIONS = {'csv', 'txt'}
+    ALLOWED_EXTENSIONS = {'csv', 'txt', 'json'}
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -98,6 +98,7 @@ def clean_dataframe(df, database_info):
     
     return cells_df
 
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -131,17 +132,17 @@ def load_dataset():
     df = pd.DataFrame(data[1:], columns=data[0])
     
     # Generate the database_info file name
-    database_info_name = f"database_info_{database_info['Plate Name']}_{database_info['Measurement']}_{database_info['Evaluation']}_{database_info['Population']}.csv"
+    dataset_info_name = f"dataset_info_{database_info['Plate Name']}_{database_info['Measurement']}_{database_info['Evaluation']}_{database_info['Population']}.json"
+    dataset_info_name = dataset_info_name.replace(' ', '_')
 
-    with open(database_info_name, 'w') as f:
+    with open(dataset_info_name, 'w') as f:
         json.dump(database_info, f)
 
     # Clean the DataFrame
     cells_df = clean_dataframe(df, database_info)
-    create_plot(cells_df)
     end_time = time.time()
     elapsed_time = end_time - start_time
-    plot_url = create_plot(cells_df)
+
 
     # Convert the elapsed time to hours, minutes, and seconds
     m, s = divmod(elapsed_time, 60)
@@ -151,15 +152,11 @@ def load_dataset():
 
     # Generate the cleaned dataset file name
     cleaned_dataset_name = f"cleaned_dataset_{database_info['Plate Name']}_{database_info['Measurement']}_{database_info['Evaluation']}_{database_info['Population']}.csv"
+    cleaned_dataset_name = cleaned_dataset_name.replace(' ', '_')
 
     # Save the cleaned dataset as a CSV file
     print("Saving cleaned dataset")
     cells_df.to_csv(cleaned_dataset_name, index=False)
-
-    # Calculate the required values
-    number_of_wells = cells_df['well_id'].nunique()
-    number_of_timepoints = cells_df['t'].nunique()
-    number_of_cells = cells_df['cell_lbl'].nunique()
 
     response = {
         'message': 'Dataset successfully loaded and cleaned',
@@ -168,12 +165,46 @@ def load_dataset():
         'number_of_timepoints': len(cells_df['t'].unique()),
         'number_of_cells': len(cells_df['cell_lbl'].unique()),
         'elapsed_time': elapsed_time_str,
-        'plot_url': plot_url
     }
 
     return jsonify(response)
+     
+@app.route('/load_cleaned_dataset', methods=['POST'])
+def load_cleaned_dataset():
+    print("load_cleaned_dataset() called")
+    if 'file' not in request.files:
+        return jsonify({'message': 'No file part in the request'}), 400
 
-def create_plot(cells_df):
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'message': 'No file selected for uploading'}), 400
+    if not allowed_file(file.filename):
+        return jsonify({'message': 'Allowed file types are txt, csv, json'}), 400
+
+    # Save the file first
+    filename = secure_filename(file.filename)
+    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+    # Decode URL encoded characters in the filename
+    filename = urllib.parse.unquote(filename)
+
+    # Replace 'cleaned_dataset_' prefix with 'dataset_info_' in filename
+    filename_without_ext, _ = os.path.splitext(filename)
+    db_info_filename = filename_without_ext.replace('cleaned_dataset_', 'dataset_info_') + '.json'
+    db_info_path = os.path.join(app.config['UPLOAD_FOLDER'], db_info_filename)
+
+    # Decode URL encoded characters in the db_info_path
+    db_info_path = urllib.parse.unquote(db_info_path)
+
+    # Load the database info
+    with open(db_info_path, 'r') as f:
+        db_info = json.load(f)
+
+    # Load the cleaned dataset into a DataFrame
+    cells_df = pd.read_csv(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+    print("Reading file into DataFrame")
+
+    # Create the plot
     wells = cells_df['well_id'].unique()
     cell_counts = [len(cells_df[cells_df['well_id'] == well]['cell_lbl'].unique()) for well in wells]
 
@@ -181,52 +212,42 @@ def create_plot(cells_df):
     plt.bar(wells, cell_counts, color=plt.cm.rainbow(np.linspace(0, 1, len(wells))))
     plt.xlabel('well_id')
     plt.ylabel('number of cell_lbl')
-    plt.title('Number of unique cells per well')
-    plot_path = 'static/plot.png'
+    plt.title('Number of unique tracked cells per well')
+    plot_path = 'static/plot_cells.png'
     plt.savefig(plot_path)
-    return plot_path
+    print(plot_path)
 
-@app.route('/load_cleaned_dataset', methods=['POST'])
-def load_cleaned_dataset():
-    if 'file' not in request.files:
-        return jsonify({'message': 'No file part in the request'}), 400
-    
-    file = request.files['file']
-    filename = secure_filename(file.filename)
-    filename = urllib.parse.unquote(filename)  # decode URL encoded characters
-    
-    if file.filename == '':
-        return jsonify({'message': 'No file selected for uploading'}), 400
-    if not allowed_file(file.filename):
-        return jsonify({'message': 'Allowed file types are txt, pdf, png, jpg, jpeg, gif'}), 400
-
-    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-    
-    # Remove 'cleaned_' prefix from filename
-    if filename.startswith("cleaned_"):
-        filename = filename[8:]
-
-    db_info_filename = 'database_info_' + filename
-    db_info_path = os.path.join(app.config['UPLOAD_FOLDER'], db_info_filename)
-    db_info_path = urllib.parse.unquote(db_info_path)  # decode URL encoded characters
-    
-    with open(db_info_path, 'r') as f:
-        db_info = json.load(f)
-    
-    cells_df = pd.read_csv(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-    
-    create_plot(cells_df)
-    
     response = {
         'message': 'Dataset loaded successfully',
         'database_info': db_info,
         'number_of_wells': len(cells_df['well_id'].unique()),
-        'number_of_timepoints': len(cells_df['timepoint'].unique()),
+        'number_of_timepoints': len(cells_df['t'].unique()),
         'number_of_cells': len(cells_df['cell_lbl'].unique()),
-        'elapsed_time': 'N/A',
-        'plot_url': url_for('get_plot')
+        'elapsed_time': 'due time',
+        'plot_url': plot_path
+    }
+
+    return jsonify(response), 200
+
+@app.route('/get_first_rows', methods=['GET'])
+def get_first_rows():
+    filename = request.args.get('filename')
+
+    if not filename:
+        return jsonify({'message': 'Missing filename parameter'}), 400
+
+    cleaned_dataset_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    print(cleaned_dataset_path)
+
+    if not os.path.exists(cleaned_dataset_path):
+        return jsonify({'message': 'File not found'}), 404
+
+    df = pd.read_csv(cleaned_dataset_path, nrows=5)
+    response = {
+        'first_rows': df.to_dict(orient='records'),
     }
     
+    print("JSON response:", response)
     return jsonify(response), 200
 
 if __name__ == '__main__':

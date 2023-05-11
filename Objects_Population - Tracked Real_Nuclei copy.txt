@@ -1,7 +1,7 @@
 Database Name	Opera_Phenix_1
 Database Link	http://157.99.122.161/ODA/OdaService.asmx
 Evaluation Signature	e740a9c8-6ba9-4899-a4ca-d0a2745e5893
-Plate Name	EP149
+Plate Name	EP149bis
 Measurement	Measurement 1
 Evaluation	Evaluation10
 Population	Population - Tracked Real_Nuclei

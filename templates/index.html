@@ -22,23 +22,30 @@
         }
         
         #plotArea {
-            max-width: 33vw;
+            max-width: 30vw;
         }
     
         #plotArea img {
             max-width: 100%;
             height: auto;
         }
+        #firstRowsTable {
+            display: block;
+            width: 100%;
+            overflow: auto;
+        }
     </style>
     
 </head>
 <body>
-    <h1>Dataset Loader</h1>
+    <h2>Dataset Cleaner</h2>
     <input type="file" id="fileInput" accept=".txt">
-    <button onclick="loadDataset()">Load Dataset</button>
+    <button onclick="loadDataset()">Clean Opera Dataset</button>
+    <h2>Dataset Loader</h2>
     <input type="file" id="cleanedFileInput" accept=".csv">
     <button onclick="loadCleanedDataset()">Load Cleaned Dataset</button>
-    <div id="loadingMessage" class="blinking" style="display: none;">Loading and cleaning dataset...</div>
+    <h2>Dataset</h2>
+    <div id="loadingMessage" class="blinking" style="display: none;">Working with your dataset...</div>
     <p id="plateName"></p>
     <p id="measurement"></p>
     <p id="evaluation"></p>
@@ -49,7 +56,10 @@
     <p id="elapsedTime"></p>
     <div id="plotArea" style="display: none;"> <!-- Set the style to none to hide it initially -->
         <img id="plotImage" src="" alt="Plot of number of unique cells per well">
-    </div>    
+    </div>
+    <table id="first-rows-table">
+        <tbody></tbody>
+    </table>
     <script src="static/js/main.js"></script>
 </body>
 </html>

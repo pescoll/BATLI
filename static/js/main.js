@@ -22,6 +22,7 @@ async function loadDataset() {
     document.getElementById('plotImage').src = '';
     document.getElementById('plotArea').style.display = 'none';
     document.getElementById('first-rows-table').style.display = 'none';
+    document.getElementById('showPlot2Button').style.display = 'none';
 
     // Display loading message
     document.getElementById('loadingMessage').style.display = 'block';
@@ -87,7 +88,7 @@ async function loadCleanedDataset() {
     document.getElementById('plotArea').style.display = 'none';
     document.getElementById('plotArea').style.display = 'none';
     document.getElementById('first-rows-table').style.display = 'none';
-
+    document.getElementById('showPlot2Button').style.display = 'none';
     // Display loading message
     document.getElementById('loadingMessage').style.display = 'block';
 
@@ -115,6 +116,7 @@ async function loadCleanedDataset() {
                 document.getElementById('plotImage').src = data.plot1_url; 
                 document.getElementById('plotArea').style.display = 'block'; // Show the plot area.
                 document.getElementById('first-rows-table').style.display = 'table';
+                document.getElementById('showPlot2Button').style.display = 'block';
 
                 // Fetch and display the first 5 rows of the DataFrame
                 //await getFirstRows(file.name);
@@ -176,4 +178,21 @@ async function getFirstRows(filename) {
     table.appendChild(tbody);
 }
 
+function showPlot2() {
+    // Hide the button
+    document.getElementById('showPlot2Button').style.display = 'none';
+
+    // Make a GET request to the /plot2 endpoint
+    axios.get('/plot2')
+        .then((response) => {
+            // Update the plot image
+            document.getElementById('plotImage2').src = response.data.plot_url;
+
+            // Show the plot area
+            document.getElementById('plotArea2').style.display = 'block';
+        })
+        .catch((error) => {
+            console.log(error);
+        });
+}
 

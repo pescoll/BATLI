@@ -1,9 +1,10 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory, url_for
+from flask import Flask, render_template, request, jsonify, send_from_directory, url_for, send_file
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 import io
+from io import BytesIO
 import base64
 import os
 import json
@@ -19,6 +20,7 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+current_filename = None
 
 app = Flask(__name__)
 
@@ -178,6 +180,7 @@ def load_dataset():
 @app.route('/load_cleaned_dataset', methods=['POST'])
 def load_cleaned_dataset():
     print("load_cleaned_dataset() called")
+    global current_filename
     if 'file' not in request.files:
         return jsonify({'message': 'No file part in the request'}), 400
 
@@ -193,6 +196,7 @@ def load_cleaned_dataset():
 
     # Decode URL encoded characters in the filename
     filename = urllib.parse.unquote(filename)
+    current_filename = filename
 
     # Replace 'cleaned_dataset_' prefix with 'dataset_info_' in filename
     filename_without_ext, _ = os.path.splitext(filename)
@@ -257,7 +261,41 @@ def get_first_rows():
         'first_rows': df.to_dict(orient='records'),
     }
     
-    print("JSON response:", response)
+    return jsonify(response), 200
+
+@app.route('/plot2')
+def plot2():
+    global current_filename
+    if current_filename is None:
+        return jsonify({'message': 'No file loaded'}), 400
+    cells_df = pd.read_csv(os.path.join(app.config['UPLOAD_FOLDER'], current_filename))
+    strains = cells_df['bact'].unique()
+
+    column_to_plot = 'tmrm_sdmean'
+    try:
+        fig, axs = plt.subplots(1,2, figsize=(12,4))
+
+        for ax, strain in zip(axs, strains):
+            _df = cells_df[ cells_df['bact']==strain ] 
+            ax.set_title(strain) 
+            ax.set_ylabel(column_to_plot)
+            ax.set_xlabel('time')
+            for k, v in _df.groupby('cell_lbl').groups.items(): 
+                _df = cells_df.loc[v] 
+                ax.plot( _df['t'], _df[column_to_plot], alpha=0.2)
+
+        timestamp = int(time.time())
+        plot2_path = f"plot_single_cells_{current_filename}_{timestamp}.png"
+        plt.savefig('plots/' + plot2_path)
+    except Exception as e:
+        app.logger.error(f'Error generating plot: {e}')
+        return jsonify({'message': f'Error generating plot: {e}'}), 500
+
+    response = {
+        'message': 'Plot 2 created successfully',
+        'plot_url': url_for('serve_plots', path=plot2_path)
+    }
+
     return jsonify(response), 200
 
 if __name__ == '__main__':

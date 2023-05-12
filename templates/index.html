@@ -29,6 +29,14 @@
             max-width: 100%;
             height: auto;
         }
+        #plotArea2 {
+            max-width: 50vw;
+        }
+    
+        #plotArea2 img {
+            max-width: 100%;
+            height: auto;
+        }
         #first-rows-table {
           border-collapse: collapse;
         }
@@ -49,10 +57,41 @@
         #elapsedTime {
           font-size: 12px;
         }
+        .container {
+            display: flex;
+            justify-content: space-between;
+        }
+        #showPlotButton {
+            align-self: center;
+        }
+        .myButton {
+            padding: 3px 6px;
+            font-size: 0.8em;
+            border: none;
+            color: white;
+            background-color: #007BFF;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .myButton:hover {
+            background-color: #0056b3;
+        }
+        .button-container {
+            position: fixed;
+            top: 200px;  /* Adjust this value as per your needs */
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            z-index: 1;  /* Ensures the button is above other content */
+        }
     </style>
     
 </head>
 <body>
+    <div class="button-container">    
+        <button class="myButton" id="showPlot2Button" style="display: none;" onclick="showPlot2()">Show Single Cell Plot</button>
+    </div>
     <h2>Dataset Cleaner</h2>
     <input type="file" id="fileInput" accept=".txt">
     <button onclick="loadDataset()">Clean Opera Dataset</button>
@@ -72,9 +111,13 @@
     <div id="plotArea" style="display: none;"> <!-- Set the style to none to hide it initially -->
         <img id="plotImage" src="" alt="Plot of number of unique cells per well">
     </div>
+    <div id="plotArea2" style="display: none;"> <!-- This is the new plot area for plot 2 -->
+        <img id="plotImage2" src="" alt="Plot 2">
+    </div>
     <table id="first-rows-table">
         <tbody></tbody>
     </table>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="static/js/main.js"></script>
 </body>
 </html>

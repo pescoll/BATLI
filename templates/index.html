@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=0.5">
     <title>Backward Analysis of Time-Lapse Images</title>
     <style>
         @keyframes blink {
@@ -22,17 +22,32 @@
         }
         
         #plotArea {
-            max-width: 30vw;
+            max-width: 35vw;
         }
     
         #plotArea img {
             max-width: 100%;
             height: auto;
         }
-        #firstRowsTable {
-            display: block;
-            width: 100%;
-            overflow: auto;
+        #first-rows-table {
+          border-collapse: collapse;
+        }
+
+        #first-rows-table th,
+        #first-rows-table td {
+          font-size: 10px;
+          border: 1px solid black;
+          padding: 6px;
+        }
+        #plateName,
+        #measurement,
+        #evaluation,
+        #population,
+        #numberOfWells,
+        #numberOfTimepoints,
+        #numberOfCells,
+        #elapsedTime {
+          font-size: 12px;
         }
     </style>
     

@@ -12,6 +12,7 @@ import matplotlib
 matplotlib.use('Agg')
 from werkzeug.utils import secure_filename
 import urllib.parse
+import glob
 
 def allowed_file(filename):
     ALLOWED_EXTENSIONS = {'csv', 'txt', 'json'}
@@ -29,38 +30,38 @@ def clean_dataframe(df, database_info):
     
     df.columns = [c.replace(prefix, '').replace(' [µm]', '_um').replace('µm', 'um') if isinstance(c, str) else c for c in df.columns]
 
-    # create a dictionary with old/new names
-    col_names = {'Row'          : 'row',
-                 'Column'       : 'col',
-                 'Plane'        : 'plane',
-                 'Timepoint'    : 't',
-                 'Field'        : 'field',
-                 'Object No'    : 'N',
-                 'X'            : 'x',
-                 'Y'            : 'y', 
-                 'Bounding Box' : 'bbox',
-                 'Position X_um': 'pos_x_um',
-                 'Position Y_um': 'pos_y_um',
-                 'Bacteria'     : 'bact',
-                 'Track Point X': 'track_point_x',
-                 'Track Point Y': 'track_point_y',
-                 'Age [s]'      : 'age_s',
-                 'Current Displacement X_um': 'disp_x_um',
-                 'Current Displacement Y_um': 'disp_y_um',
-                 'Current Speed [um/s]'     : 'speed_um_s',
-                 'Number of Legio- per Cell '      : 'leg_n',
-                 'Legio Area [µm²]- Sum per Cell ' : 'leg_area',
-                 'SER TMRM SER Edge 0.535331905782 um' : 'mito_frag',
-                 'SD/Mean TMRM'    : 'tmrm_sdmean',
-                 'Intensity AnnexinV-647 Mean' :'annexin_mfi', 
-                 'Intensity Nucleus HOECHST 33342 Mean' : 'hoechst_mfi',
-                 'Number of Legio- per Cell '      : 'leg_n',
-                 'Legio Area [µm²]- Sum per Cell ' : 'leg_area',
-                 'Infected'        : 'infected'
-                }
+    # # create a dictionary with old/new names
+    # col_names = {'Row'          : 'row',
+    #              'Column'       : 'col',
+    #              'Plane'        : 'plane',
+    #              'Timepoint'    : 't',
+    #              'Field'        : 'field',
+    #              'Object No'    : 'N',
+    #              'X'            : 'x',
+    #              'Y'            : 'y', 
+    #              'Bounding Box' : 'bbox',
+    #              'Position X_um': 'pos_x_um',
+    #              'Position Y_um': 'pos_y_um',
+    #              'Bacteria'     : 'bact',
+    #              'Track Point X': 'track_point_x',
+    #              'Track Point Y': 'track_point_y',
+    #              'Age [s]'      : 'age_s',
+    #              'Current Displacement X_um': 'disp_x_um',
+    #              'Current Displacement Y_um': 'disp_y_um',
+    #              'Current Speed [um/s]'     : 'speed_um_s',
+    #              'Number of Legio- per Cell '      : 'leg_n',
+    #              'Legio Area [µm²]- Sum per Cell ' : 'leg_area',
+    #              'SER TMRM SER Edge 0.535331905782 um' : 'mito_frag',
+    #              'SD/Mean TMRM'    : 'tmrm_sdmean',
+    #              'Intensity AnnexinV-647 Mean' :'annexin_mfi', 
+    #              'Intensity Nucleus HOECHST 33342 Mean' : 'hoechst_mfi',
+    #              'Number of Legio- per Cell '      : 'leg_n',
+    #              'Legio Area [µm²]- Sum per Cell ' : 'leg_area',
+    #              'Infected'        : 'infected'
+    #             }
 
-    # rename the columns
-    df = df.rename(columns = col_names)
+    # # rename the columns
+    # df = df.rename(columns = col_names)
 
     # add a unique well ID
     df['well_id'] = -1  
@@ -102,6 +103,14 @@ def clean_dataframe(df, database_info):
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/plots/<path:path>')
+def serve_plots(path):
+    response = send_from_directory('plots', path)
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '-1'
+    return response
 
 @app.route('/load_dataset', methods=['POST'])
 def load_dataset():
@@ -159,11 +168,8 @@ def load_dataset():
     cells_df.to_csv(cleaned_dataset_name, index=False)
 
     response = {
-        'message': 'Dataset successfully loaded and cleaned',
+        'message': 'Dataset was cleaned and pre-processed',
         'database_info': database_info,
-        'number_of_wells': len(cells_df['well_id'].unique()),
-        'number_of_timepoints': len(cells_df['t'].unique()),
-        'number_of_cells': len(cells_df['cell_lbl'].unique()),
         'elapsed_time': elapsed_time_str,
     }
 
@@ -204,18 +210,22 @@ def load_cleaned_dataset():
     cells_df = pd.read_csv(os.path.join(app.config['UPLOAD_FOLDER'], filename))
     print("Reading file into DataFrame")
 
+    # Delete old plot files
+    for plot_file in glob.glob('plots/plot_*.png'):
+        os.remove(plot_file)    
+
     # Create the plot
     wells = cells_df['well_id'].unique()
     cell_counts = [len(cells_df[cells_df['well_id'] == well]['cell_lbl'].unique()) for well in wells]
-
+    timestamp = int(time.time())
     plt.figure(figsize=(10, 6))
     plt.bar(wells, cell_counts, color=plt.cm.rainbow(np.linspace(0, 1, len(wells))))
     plt.xlabel('well_id')
     plt.ylabel('number of cell_lbl')
     plt.title('Number of unique tracked cells per well')
-    plot_path = 'static/plot_cells.png'
-    plt.savefig(plot_path)
-    print(plot_path)
+    plot1_path = f"plot_cells_per_well_{db_info['Plate Name']}_{timestamp}.png"
+    plt.savefig('plots/' + plot1_path)
+    print('plots/' + plot1_path)
 
     response = {
         'message': 'Dataset loaded successfully',
@@ -223,8 +233,7 @@ def load_cleaned_dataset():
         'number_of_wells': len(cells_df['well_id'].unique()),
         'number_of_timepoints': len(cells_df['t'].unique()),
         'number_of_cells': len(cells_df['cell_lbl'].unique()),
-        'elapsed_time': 'due time',
-        'plot_url': plot_path
+        'plot1_url': url_for('serve_plots', path=plot1_path)
     }
 
     return jsonify(response), 200
@@ -243,6 +252,7 @@ def get_first_rows():
         return jsonify({'message': 'File not found'}), 404
 
     df = pd.read_csv(cleaned_dataset_path, nrows=5)
+    df = df.fillna('NaN')
     response = {
         'first_rows': df.to_dict(orient='records'),
     }

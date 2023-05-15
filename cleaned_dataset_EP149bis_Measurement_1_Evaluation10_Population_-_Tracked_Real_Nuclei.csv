@@ -1,4 +1,4 @@
-row,col,plane,t,field,N,x,y,bbox,pos_x_um,pos_y_um,bact,age_s,disp_x_um,disp_y_um,track_point_x,track_point_y,speed_um_s,well_id,cell_lbl
+row,col,plane,t,field,N,x,y,bbox,pos_x_um,pos_y_um,Bacteria,age_s,disp_x_um,disp_y_um,track_point_x,track_point_y,speed_um_s,well_id,cell_lbl
 4,5,1,0,1,1,1275,154,"[1072,1,1460,309]",16.56,486.14,Lpp WT,0,0,0,1257,134,NaN,1,w1_f1_c1
 4,5,1,0,1,10,286,1789,"[195,1667,374,1962]",-74.69,331.02,Lpp WT,0,0,0,280,1793,0.00234771,1,w1_f1_c10
 4,5,1,1,1,10,230,1717,"[154,1626,314,1798]",-78.81,338.45,Lpp WT,3599.36,-4.11173,-7.38242,236,1714,0.00178563,1,w1_f1_c10

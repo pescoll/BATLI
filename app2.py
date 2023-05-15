@@ -26,7 +26,7 @@ app = Flask(__name__)
 
 app.config['UPLOAD_FOLDER'] = './'
 
-def clean_dataframe(df, database_info):
+def clean_dataframe(df, database_info):  # Basic cleaning and creation of unique well IDs and unique cell IDs
     population = database_info["Population"]
     prefix = population.replace("Population - ", "") + " - "
     
@@ -167,7 +167,14 @@ def load_dataset():
         'elapsed_time': elapsed_time_str,
     }
     print(response)
-    response = jsonify(response, {"filename": cleaned_dataset_name})
+
+    # Update the response with the cleaned dataset filename
+    response.update({
+    "cleaned_dataset_file": cleaned_dataset_name,
+    "filename": cleaned_dataset_name
+    })
+
+    response = jsonify(response)
     response.headers['Content-Type'] = 'application/json'
     print(response)
     return response
@@ -182,22 +189,40 @@ def get_column_names():
 
     df = pd.read_csv(filename)
     column_names = df.columns.tolist()
+    print(type(column_names))  # check the type of column_names
+    print(column_names)  # log the column names
     return jsonify(column_names)
 
 
 @app.route('/rename_columns', methods=['POST'])
 def rename_columns():
-    filename = request.form.get('filename')
+    data = request.get_json()  # Get the JSON body of the request
+
+    print(data)  # Print the data
+
+    filename = data.get('filename')
 
     if not filename:
         return jsonify({'message': 'Missing filename parameter'}), 400
 
-    data = request.form.to_dict()
-    # The keys of the dictionary are the old column names, and the values are the new column names
+    mappings = data.get('mappings')
+
+    if not mappings:
+        return jsonify({'message': 'Missing mappings parameter'}), 400
 
     df = pd.read_csv(filename)
-    df.rename(columns=data, inplace=True)
+
+    # Apply the column name mappings
+    for old_name, new_name in mappings.items():
+        if old_name in df.columns:
+            df.rename(columns={old_name: new_name}, inplace=True)
+
     df.to_csv(filename, index=False)
+
+    # Save the mappings as a JSON file
+    json_filename = "new_param_" + os.path.basename(filename).replace('.csv', '.json')
+    with open(json_filename, 'w') as json_file:
+        json.dump(mappings, json_file)
 
     return jsonify({'message': 'Columns renamed successfully'})
 
@@ -211,127 +236,127 @@ def rename_columns():
 
 
 
-
-@app.route('/load_cleaned_dataset', methods=['POST'])
-def load_cleaned_dataset():
-    print("load_cleaned_dataset() called")
-    global current_filename
-    if 'file' not in request.files:
-        return jsonify({'message': 'No file part in the request'}), 400
-
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'message': 'No file selected for uploading'}), 400
-    if not allowed_file(file.filename):
-        return jsonify({'message': 'Allowed file types are txt, csv, json'}), 400
-
-    # Save the file first
-    filename = secure_filename(file.filename)
-    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-
-    # Decode URL encoded characters in the filename
-    filename = urllib.parse.unquote(filename)
-    current_filename = filename
-
-    # Replace 'cleaned_dataset_' prefix with 'dataset_info_' in filename
-    filename_without_ext, _ = os.path.splitext(filename)
-    db_info_filename = filename_without_ext.replace('cleaned_dataset_', 'dataset_info_') + '.json'
-    db_info_path = os.path.join(app.config['UPLOAD_FOLDER'], db_info_filename)
-
-    # Decode URL encoded characters in the db_info_path
-    db_info_path = urllib.parse.unquote(db_info_path)
-
-    # Load the database info
-    with open(db_info_path, 'r') as f:
-        db_info = json.load(f)
-
-    # Load the cleaned dataset into a DataFrame
-    cells_df = pd.read_csv(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-    print("Reading file into DataFrame")
-
-    # Delete old plot files
-    for plot_file in glob.glob('plots/plot_*.png'):
-        os.remove(plot_file)    
-
-    # Create the plot
-    wells = cells_df['well_id'].unique()
-    cell_counts = [len(cells_df[cells_df['well_id'] == well]['cell_lbl'].unique()) for well in wells]
-    timestamp = int(time.time())
-    plt.figure(figsize=(10, 6))
-    plt.bar(wells, cell_counts, color=plt.cm.rainbow(np.linspace(0, 1, len(wells))))
-    plt.xlabel('well_id')
-    plt.ylabel('number of cell_lbl')
-    plt.title('Number of unique tracked cells per well')
-    plot1_path = f"plot_cells_per_well_{db_info['Plate Name']}_{timestamp}.png"
-    plt.savefig('plots/' + plot1_path)
-    print('plots/' + plot1_path)
-
-    response = {
-        'message': 'Dataset loaded successfully',
-        'database_info': db_info,
-        'number_of_wells': len(cells_df['well_id'].unique()),
-        'number_of_timepoints': len(cells_df['t'].unique()),
-        'number_of_cells': len(cells_df['cell_lbl'].unique()),
-        'plot1_url': url_for('serve_plots', path=plot1_path)
-    }
-
-    return jsonify(response), 200
-
-@app.route('/get_first_rows', methods=['GET'])
-def get_first_rows():
-    filename = request.args.get('filename')
-
-    if not filename:
-        return jsonify({'message': 'Missing filename parameter'}), 400
-
-    cleaned_dataset_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    print(cleaned_dataset_path)
-
-    if not os.path.exists(cleaned_dataset_path):
-        return jsonify({'message': 'File not found'}), 404
-
-    df = pd.read_csv(cleaned_dataset_path, nrows=5)
-    df = df.fillna('NaN')
-    response = {
-        'first_rows': df.to_dict(orient='records'),
-    }
-    
-    return jsonify(response), 200
-
-@app.route('/plot2')
-def plot2():
-    global current_filename
-    if current_filename is None:
-        return jsonify({'message': 'No file loaded'}), 400
-    cells_df = pd.read_csv(os.path.join(app.config['UPLOAD_FOLDER'], current_filename))
-    strains = cells_df['bact'].unique()
-
-    column_to_plot = 'tmrm_sdmean'
-    try:
-        fig, axs = plt.subplots(1,2, figsize=(12,4))
-
-        for ax, strain in zip(axs, strains):
-            _df = cells_df[ cells_df['bact']==strain ] 
-            ax.set_title(strain) 
-            ax.set_ylabel(column_to_plot)
-            ax.set_xlabel('time')
-            for k, v in _df.groupby('cell_lbl').groups.items(): 
-                _df = cells_df.loc[v] 
-                ax.plot( _df['t'], _df[column_to_plot], alpha=0.2)
-
-        timestamp = int(time.time())
-        plot2_path = f"plot_single_cells_{current_filename}_{timestamp}.png"
-        plt.savefig('plots/' + plot2_path)
-    except Exception as e:
-        app.logger.error(f'Error generating plot: {e}')
-        return jsonify({'message': f'Error generating plot: {e}'}), 500
-
-    response = {
-        'message': 'Plot 2 created successfully',
-        'plot_url': url_for('serve_plots', path=plot2_path)
-    }
-
-    return jsonify(response), 200
-
 if __name__ == '__main__':
-    app.run(port=5017)
+    app.run(port=5000)
+
+
+# @app.route('/load_cleaned_dataset', methods=['POST'])
+# def load_cleaned_dataset():
+#     print("load_cleaned_dataset() called")
+#     global current_filename
+#     if 'file' not in request.files:
+#         return jsonify({'message': 'No file part in the request'}), 400
+
+#     file = request.files['file']
+#     if file.filename == '':
+#         return jsonify({'message': 'No file selected for uploading'}), 400
+#     if not allowed_file(file.filename):
+#         return jsonify({'message': 'Allowed file types are txt, csv, json'}), 400
+
+#     # Save the file first
+#     filename = secure_filename(file.filename)
+#     file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+#     # Decode URL encoded characters in the filename
+#     filename = urllib.parse.unquote(filename)
+#     current_filename = filename
+
+#     # Replace 'cleaned_dataset_' prefix with 'dataset_info_' in filename
+#     filename_without_ext, _ = os.path.splitext(filename)
+#     db_info_filename = filename_without_ext.replace('cleaned_dataset_', 'dataset_info_') + '.json'
+#     db_info_path = os.path.join(app.config['UPLOAD_FOLDER'], db_info_filename)
+
+#     # Decode URL encoded characters in the db_info_path
+#     db_info_path = urllib.parse.unquote(db_info_path)
+
+#     # Load the database info
+#     with open(db_info_path, 'r') as f:
+#         db_info = json.load(f)
+
+#     # Load the cleaned dataset into a DataFrame
+#     cells_df = pd.read_csv(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+#     print("Reading file into DataFrame")
+
+#     # Delete old plot files
+#     for plot_file in glob.glob('plots/plot_*.png'):
+#         os.remove(plot_file)    
+
+#     # Create the plot
+#     wells = cells_df['well_id'].unique()
+#     cell_counts = [len(cells_df[cells_df['well_id'] == well]['cell_lbl'].unique()) for well in wells]
+#     timestamp = int(time.time())
+#     plt.figure(figsize=(10, 6))
+#     plt.bar(wells, cell_counts, color=plt.cm.rainbow(np.linspace(0, 1, len(wells))))
+#     plt.xlabel('well_id')
+#     plt.ylabel('number of cell_lbl')
+#     plt.title('Number of unique tracked cells per well')
+#     plot1_path = f"plot_cells_per_well_{db_info['Plate Name']}_{timestamp}.png"
+#     plt.savefig('plots/' + plot1_path)
+#     print('plots/' + plot1_path)
+
+#     response = {
+#         'message': 'Dataset loaded successfully',
+#         'database_info': db_info,
+#         'number_of_wells': len(cells_df['well_id'].unique()),
+#         'number_of_timepoints': len(cells_df['t'].unique()),
+#         'number_of_cells': len(cells_df['cell_lbl'].unique()),
+#         'plot1_url': url_for('serve_plots', path=plot1_path)
+#     }
+
+#     return jsonify(response), 200
+
+# @app.route('/get_first_rows', methods=['GET'])
+# def get_first_rows():
+#     filename = request.args.get('filename')
+
+#     if not filename:
+#         return jsonify({'message': 'Missing filename parameter'}), 400
+
+#     cleaned_dataset_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+#     print(cleaned_dataset_path)
+
+#     if not os.path.exists(cleaned_dataset_path):
+#         return jsonify({'message': 'File not found'}), 404
+
+#     df = pd.read_csv(cleaned_dataset_path, nrows=5)
+#     df = df.fillna('NaN')
+#     response = {
+#         'first_rows': df.to_dict(orient='records'),
+#     }
+    
+#     return jsonify(response), 200
+
+# @app.route('/plot2')
+# def plot2():
+#     global current_filename
+#     if current_filename is None:
+#         return jsonify({'message': 'No file loaded'}), 400
+#     cells_df = pd.read_csv(os.path.join(app.config['UPLOAD_FOLDER'], current_filename))
+#     strains = cells_df['bact'].unique()
+
+#     column_to_plot = 'tmrm_sdmean'
+#     try:
+#         fig, axs = plt.subplots(1,2, figsize=(12,4))
+
+#         for ax, strain in zip(axs, strains):
+#             _df = cells_df[ cells_df['bact']==strain ] 
+#             ax.set_title(strain) 
+#             ax.set_ylabel(column_to_plot)
+#             ax.set_xlabel('time')
+#             for k, v in _df.groupby('cell_lbl').groups.items(): 
+#                 _df = cells_df.loc[v] 
+#                 ax.plot( _df['t'], _df[column_to_plot], alpha=0.2)
+
+#         timestamp = int(time.time())
+#         plot2_path = f"plot_single_cells_{current_filename}_{timestamp}.png"
+#         plt.savefig('plots/' + plot2_path)
+#     except Exception as e:
+#         app.logger.error(f'Error generating plot: {e}')
+#         return jsonify({'message': f'Error generating plot: {e}'}), 500
+
+#     response = {
+#         'message': 'Plot 2 created successfully',
+#         'plot_url': url_for('serve_plots', path=plot2_path)
+#     }
+
+#     return jsonify(response), 200

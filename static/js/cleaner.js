@@ -1,4 +1,4 @@
-let filename;
+let cleaned_dataset_file;
 
 async function loadDataset() {
     const fileInput = document.getElementById('fileInput');
@@ -50,19 +50,10 @@ async function loadDataset() {
                 document.getElementById('numberOfTimepoints').textContent = `Number of Timepoints: ${data.number_of_timepoints || ''}`;
                 document.getElementById('numberOfCells').textContent = `Number of Unique Tracked Cells: ${data.number_of_cells || ''}`;
                 document.getElementById('elapsedTime').textContent = `Dataset cleaned and pre-processed in ${data.elapsed_time || ''}`;
-            
-                // Populate the rename fields
-                const renameFields = document.getElementById('renameFields');
-                for (const columnName of Object.keys(data.database_info || {})) {
-                    const input = document.createElement('input');
-                    input.name = columnName;
-                    input.placeholder = columnName;
-                    input.pattern = "\\w{1,20}";
-                    input.title = "Names should be less than 20 characters long, can have only underscores as symbols in the name, and should be only one word";
-                    renameFields.appendChild(input);
-                }
 
-                getColumnNamesAndPopulateForm();
+                // Get column names and populate form
+                cleaned_dataset_file = data.cleaned_dataset_file; // Set the cleaned_dataset_file global variable
+                getColumnNamesAndPopulateForm(); // Call the function to populate the form
             }
             else {
                 alert('Error loading dataset');
@@ -83,9 +74,19 @@ async function getColumnNamesAndPopulateForm() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({filename: filename})
+            body: JSON.stringify({filename: cleaned_dataset_file})
         });
-        const columnNames = await response.json();
+        const data = await response.json();  // rename columnNames to data
+        console.log(data);  // check what is returned from server
+        console.log(`Filename: ${cleaned_dataset_file}`);
+
+        if (!Array.isArray(data)) {  // check if data is an array
+            console.error('Data returned from server is not an array');
+            return;
+        }
+
+        const columnNames = data;  // if data is an array, assign it to columnNames
+
         const renameForm = document.getElementById('renameForm');
 
         for (let columnName of columnNames) {
@@ -105,6 +106,87 @@ async function getColumnNamesAndPopulateForm() {
             renameForm.appendChild(oldNameInput);
             renameForm.appendChild(newNameLabel);
             renameForm.appendChild(newNameInput);
+        }
+
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+async function renameColumns(event) {
+    event.preventDefault();
+
+    let renameForm = document.getElementById('renameForm');
+    console.log(renameForm);  // Print the form
+    console.log(renameForm.elements);  // Print the form elements
+
+    let columnMappings = {};  // Create an object to store column name mappings
+
+    let isValid = true;
+    let validationMessage = '';
+
+    // Iterate over the form elements in pairs (old name, new name)
+    for (let i = 0; i < renameForm.elements.length - 1; i += 2) {
+        let oldName = renameForm.elements[i].value;
+        let newName = renameForm.elements[i + 1].value;
+
+        if (!newName) {
+            newName = oldName; // If no new name provided, use the old name
+        }
+
+        // Check the length of the new name
+        if (newName.length > 20) {
+            isValid = false;
+            validationMessage += `New name for column "${oldName}" is too long. It should be no more than 20 characters.\n`;
+            continue;
+        }
+
+        // Check if the new name contains only alphanumeric characters and underscores
+        if (!/^[a-zA-Z0-9_]+$/.test(newName)) {
+            isValid = false;
+            validationMessage += `New name for column "${oldName}" is invalid. It should only contain alphanumeric characters and underscores.\n`;
+            continue;
+        }
+
+        // Check if the new name contains more than one word
+        if (newName.split('_').length > 1) {
+            isValid = false;
+            validationMessage += `New name for column "${oldName}" should be one word. Underscores are the only valid symbols.\n`;
+        }
+
+        // Add the column name mapping to the object
+        columnMappings[oldName] = newName;
+    }
+
+    if (!isValid) {
+        alert(validationMessage);
+        return;
+    }
+
+    // Convert the column name mappings to a JSON string
+    let jsonMappings = JSON.stringify({
+        filename: cleaned_dataset_file,
+        mappings: columnMappings
+    });
+
+    console.log(jsonMappings);  // Print the JSON string
+
+    try {
+        const response = await fetch('/rename_columns', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: jsonMappings  // Send the JSON string to the server
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            console.log(data);
+            alert(data.message);
+            // TODO: Update the UI based on the response
+        } else {
+            console.error('Error:', response.statusText);
         }
 
     } catch (error) {

@@ -24,7 +24,7 @@ current_filename = None
 
 app = Flask(__name__)
 
-app.config['UPLOAD_FOLDER'] = './backward_analysis/'
+app.config['UPLOAD_FOLDER'] = './'
 
 def clean_dataframe(df, database_info):
     population = database_info["Population"]
@@ -334,4 +334,4 @@ def plot2():
     return jsonify(response), 200
 
 if __name__ == '__main__':
-    app.run(port=5016)
+    app.run(port=5017)

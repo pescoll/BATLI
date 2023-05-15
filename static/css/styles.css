@@ -1,0 +1,107 @@
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f4f4f4;
+    color: #333;
+    line-height: 1.6em;
+    margin: 0;
+    padding: 0;
+}
+
+nav {
+    background-color: #333;
+    color: #fff;
+    padding: 15px 0;
+    text-align: center;
+}
+
+nav a {
+    color: #fff;
+    margin: 0 15px;
+    text-decoration: none;
+    font-size: 1.2em;
+}
+
+nav a:hover {
+    color: #007BFF;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.container p {
+    margin-bottom: 10px;
+}
+
+h2 {
+    color: #007BFF;
+}
+
+.myButton {
+    padding: 10px 20px;
+    font-size: 1em;
+    border: none;
+    color: white;
+    background-color: #007BFF;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.myButton:hover {
+    background-color: #0056b3;
+}
+
+#plotArea img, #plotArea2 img {
+    width: 100%;
+    height: auto;
+}
+
+.button-container {
+    display: flex;
+    justify-content: center;
+    margin: 20px 0;
+}
+
+input[type=file] {
+    border: 1px solid #ccc;
+    display: inline-block;
+    padding: 6px 12px;
+    cursor: pointer;
+}
+
+input[type=file]:hover {
+    background-color: #ccc;
+}
+
+.blinking {
+    animation: blink 1s linear infinite;
+}
+
+@keyframes blink {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+#first-rows-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+#first-rows-table th,
+#first-rows-table td {
+    font-size: 0.8em;
+    border: 1px solid black;
+    padding: 6px;
+    text-align: left;
+}

@@ -196,35 +196,30 @@ def get_column_names():
 
 @app.route('/rename_columns', methods=['POST'])
 def rename_columns():
-    data = request.get_json()  # Get the JSON body of the request
-
-    print(data)  # Print the data
+    data = request.get_json()
 
     filename = data.get('filename')
-
-    if not filename:
-        return jsonify({'message': 'Missing filename parameter'}), 400
-
     mappings = data.get('mappings')
 
-    if not mappings:
-        return jsonify({'message': 'Missing mappings parameter'}), 400
+    if not filename or not mappings:
+        return jsonify({'message': 'Missing filename or mappings parameter'}), 400
 
-    df = pd.read_csv(filename)
+    try:
+        df = pd.read_csv(filename)
+        df.rename(columns=mappings, inplace=True)
+        df.to_csv(filename, index=False)
 
-    # Apply the column name mappings
-    for old_name, new_name in mappings.items():
-        if old_name in df.columns:
-            df.rename(columns={old_name: new_name}, inplace=True)
+        # Save the mappings as a json file
+        with open(f'new_param_{filename}', 'w') as file:
+            json.dump(mappings, file)
 
-    df.to_csv(filename, index=False)
+        return jsonify({'message': 'Columns renamed successfully'})
 
-    # Save the mappings as a JSON file
-    json_filename = "new_param_" + os.path.basename(filename).replace('.csv', '.json')
-    with open(json_filename, 'w') as json_file:
-        json.dump(mappings, json_file)
+    except FileNotFoundError:
+        return jsonify({'message': f'File not found: {filename}'}), 404
+    except Exception as e:
+        return jsonify({'message': str(e)}), 500
 
-    return jsonify({'message': 'Columns renamed successfully'})
 
 
 

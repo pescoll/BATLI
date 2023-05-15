@@ -105,3 +105,19 @@ input[type=file]:hover {
     padding: 6px;
     text-align: left;
 }
+
+#renameForm div {
+    margin-bottom: 10px;
+}
+
+#renameForm label {
+    display: inline-block;
+    width: 200px;
+    text-align: right;
+    margin-right: 10px;
+}
+
+#renameForm input {
+    display: inline-block;
+    width: 200px;
+}

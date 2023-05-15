@@ -54,6 +54,7 @@ async function loadDataset() {
                 // Get column names and populate form
                 cleaned_dataset_file = data.cleaned_dataset_file; // Set the cleaned_dataset_file global variable
                 getColumnNamesAndPopulateForm(); // Call the function to populate the form
+
             }
             else {
                 alert('Error loading dataset');
@@ -76,42 +77,49 @@ async function getColumnNamesAndPopulateForm() {
             },
             body: JSON.stringify({filename: cleaned_dataset_file})
         });
-        const data = await response.json();  // rename columnNames to data
-        console.log(data);  // check what is returned from server
-        console.log(`Filename: ${cleaned_dataset_file}`);
+        
+        if (response.ok) {
+            const data = await response.json();  // rename columnNames to data
+            console.log(data);  // check what is returned from server
+            console.log(`Filename: ${cleaned_dataset_file}`);
 
-        if (!Array.isArray(data)) {  // check if data is an array
-            console.error('Data returned from server is not an array');
-            return;
-        }
+            if (!Array.isArray(data)) {  // check if data is an array
+                console.error('Data returned from server is not an array');
+                return;
+            }
 
-        const columnNames = data;  // if data is an array, assign it to columnNames
+            let renameFieldsDiv = document.getElementById('renameFields');
 
-        const renameForm = document.getElementById('renameForm');
+            for (let colName of data) {
+                let fieldRow = document.createElement('div');
 
-        for (let columnName of columnNames) {
-            const oldNameLabel = document.createElement('label');
-            oldNameLabel.textContent = 'Old Column Name:';
-            const oldNameInput = document.createElement('input');
-            oldNameInput.type = 'text';
-            oldNameInput.value = columnName;
-            oldNameInput.readOnly = true;
+                let oldNameLabel = document.createElement('label');
+                oldNameLabel.textContent = colName + ' ---- ';
+                fieldRow.appendChild(oldNameLabel);
 
-            const newNameLabel = document.createElement('label');
-            newNameLabel.textContent = 'New Column Name:';
-            const newNameInput = document.createElement('input');
-            newNameInput.type = 'text';
+                let oldNameInput = document.createElement('input');
+                oldNameInput.type = 'hidden';
+                oldNameInput.name = colName;
+                oldNameInput.value = colName;
+                fieldRow.appendChild(oldNameInput);
 
-            renameForm.appendChild(oldNameLabel);
-            renameForm.appendChild(oldNameInput);
-            renameForm.appendChild(newNameLabel);
-            renameForm.appendChild(newNameInput);
+                let newNameInput = document.createElement('input');
+                newNameInput.name = colName;
+                fieldRow.appendChild(newNameInput);
+
+                renameFieldsDiv.appendChild(fieldRow);
+            }
+
+        } else {
+            console.error('Error:', response.statusText);
         }
 
     } catch (error) {
         console.error('Error:', error);
     }
 }
+
+
 
 async function renameColumns(event) {
     event.preventDefault();
@@ -146,12 +154,6 @@ async function renameColumns(event) {
             isValid = false;
             validationMessage += `New name for column "${oldName}" is invalid. It should only contain alphanumeric characters and underscores.\n`;
             continue;
-        }
-
-        // Check if the new name contains more than one word
-        if (newName.split('_').length > 1) {
-            isValid = false;
-            validationMessage += `New name for column "${oldName}" should be one word. Underscores are the only valid symbols.\n`;
         }
 
         // Add the column name mapping to the object
@@ -193,3 +195,4 @@ async function renameColumns(event) {
         console.error('Error:', error);
     }
 }
+

@@ -24,7 +24,7 @@ current_filename = None
 
 app = Flask(__name__)
 
-app.config['UPLOAD_FOLDER'] = '/Users/pedro/Documents/GitHub/backward_analysis/'
+app.config['UPLOAD_FOLDER'] = './'
 
 def clean_dataframe(df, database_info):
     population = database_info["Population"]

@@ -38,8 +38,8 @@
     <p id="numberOfCells"></p>
     <p id="elapsedTime"></p>
     </div>
-    <h2>Change Parameter Names</h2>
-    <form id="renameForm" onsubmit="event.preventDefault(); renameColumns();">
+    <h2>Change Parameter Names to 1-Word names</h2>
+    <form id="renameForm" onsubmit="renameColumns(event)">
     <div id="renameFields"></div>
     <button type="submit">Rename Parameters</button>
     </form>
@@ -47,5 +47,3 @@
     <script src="{{ url_for('static', filename='js/cleaner.js') }}"></script>
 </body>
 </html>
-
-

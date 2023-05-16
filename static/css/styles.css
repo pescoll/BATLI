@@ -78,6 +78,7 @@ input[type=file]:hover {
 
 .blinking {
     animation: blink 1s linear infinite;
+    font-size: 0.8em;
 }
 
 @keyframes blink {
@@ -112,12 +113,14 @@ input[type=file]:hover {
 
 #renameForm label {
     display: inline-block;
-    width: 200px;
+    width: 100px;
     text-align: right;
-    margin-right: 10px;
+    margin-left: 10px;
+    font-size: 0.8em;
 }
 
 #renameForm input {
     display: inline-block;
     width: 200px;
+    font-size: 0.8em;
 }

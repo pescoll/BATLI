@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Cleaner - Backward Analysis of Time-Lapse Images</title>
+    <!-- rest of the header from the original file -->
+    <title>Loader - Backward Analysis of Time-Lapse Images</title>
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico" />
     <style>
@@ -20,13 +21,13 @@
 </head>
 <body>
     <nav>
-        <a href="/loader">Loader</a>
+        <a href="/cleaner">Cleaner</a>
         <a href="/viewer">Viewer</a>
         <a href="/backward_analysis">Backward Analysis</a>
     </nav>
-    <h2>Dataset Cleaner</h2>
-    <input type="file" id="fileInput" accept=".txt">
-    <button onclick="loadDataset()">Load Opera Dataset</button>
+    <h2>Dataset Loader</h2>
+    <input type="file" id="cleanedFileInput" accept=".csv">
+    <button onclick="loadCleanedDataset()">Load Cleaned Dataset</button>
     <h2>Dataset</h2>
     <div id="loadingMessage" class="blinking" style="display: none;">Working with your dataset...</div>
     <p id="plateName"></p>
@@ -36,14 +37,17 @@
     <p id="numberOfWells"></p>
     <p id="numberOfTimepoints"></p>
     <p id="numberOfCells"></p>
-    <p id="elapsedTime"></p>
     </div>
-    <h2>Standarize Parameter Names</h2>
-    <form id="renameForm" onsubmit="renameColumns(event)">
-    <div id="renameFields"></div>
-    <button type="submit">Rename Parameters</button>
-    </form>
+    <div id="plotArea" style="display: none;"> <!-- Set the style to none to hide it initially -->
+        <img id="plotImage" src="" alt="Plot of number of unique cells per well">
+    </div>
+    <div id="plotArea2" style="display: none;"> <!-- This is the new plot area for plot 2 -->
+        <img id="plotImage2" src="" alt="Plot 2">
+    </div>
+    <table id="first-rows-table">
+        <tbody></tbody>
+    </table>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <script src="{{ url_for('static', filename='js/cleaner.js') }}"></script>
+    <script src="static/js/loader.js"></script>
 </body>
 </html>

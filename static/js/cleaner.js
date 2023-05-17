@@ -1,5 +1,7 @@
 let cleaned_dataset_file;
 
+var currentDatasetFilename = localStorage.getItem('currentDatasetFilename');
+
 async function loadDataset() {
     const fileInput = document.getElementById('fileInput');
     if (fileInput.files.length === 0) {
@@ -42,6 +44,14 @@ async function loadDataset() {
 
                 // Update HTML elements and filename
                 filename = data.filename;
+                
+                // Save the filename to localStorage
+                localStorage.setItem('currentDatasetFilename', filename);
+
+                // Update the HTML element to display the filename
+                let filenameElement = document.getElementById('currentDataset');
+                filenameElement.textContent = `Current dataset: ${filename}`;
+
                 document.getElementById('plateName').textContent = `Plate Name: ${(data.database_info && data.database_info['Plate Name']) || ''}`;
                 document.getElementById('measurement').textContent = `Measurement: ${(data.database_info && data.database_info['Measurement']) || ''}`;
                 document.getElementById('evaluation').textContent = `Evaluation: ${(data.database_info && data.database_info['Evaluation']) || ''}`;
@@ -69,19 +79,21 @@ async function loadDataset() {
 }
 
 async function getColumnNamesAndPopulateForm() {
+    // Get the current dataset filename from localStorage
+    let currentDatasetFilename = localStorage.getItem('currentDatasetFilename');
     try {
         const response = await fetch('/get_column_names', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({filename: cleaned_dataset_file})
+            body: JSON.stringify({filename: currentDatasetFilename})
         });
         
         if (response.ok) {
             const data = await response.json();  // rename columnNames to data
             console.log(data);  // check what is returned from server
-            console.log(`Filename: ${cleaned_dataset_file}`);
+            console.log(`Filename: ${currentDatasetFilename}`);
 
             if (!Array.isArray(data)) {  // check if data is an array
                 console.error('Data returned from server is not an array');
@@ -92,24 +104,33 @@ async function getColumnNamesAndPopulateForm() {
 
             for (let colName of data) {
                 let fieldRow = document.createElement('div');
-
+            
                 let oldNameLabel = document.createElement('label');
                 oldNameLabel.textContent = colName + ' ---- ';
+                oldNameLabel.className = 'oldNameLabel';
                 fieldRow.appendChild(oldNameLabel);
-
+            
                 let oldNameInput = document.createElement('input');
                 oldNameInput.type = 'hidden';
                 oldNameInput.name = colName;
                 oldNameInput.value = colName;
                 fieldRow.appendChild(oldNameInput);
-
+            
                 let newNameInput = document.createElement('input');
                 newNameInput.name = colName;
+                newNameInput.className = 'newNameInput';
                 fieldRow.appendChild(newNameInput);
-
+            
+                let deleteCheckbox = document.createElement('input');
+                deleteCheckbox.type = 'checkbox';
+                deleteCheckbox.id = 'delete_' + colName;
+                deleteCheckbox.className = 'deleteCheckbox';
+                deleteCheckbox.title = 'remove this parameter';
+                fieldRow.appendChild(deleteCheckbox);
+            
                 renameFieldsDiv.appendChild(fieldRow);
             }
-
+            
         } else {
             console.error('Error:', response.statusText);
         }
@@ -119,10 +140,11 @@ async function getColumnNamesAndPopulateForm() {
     }
 }
 
-
-
 async function renameColumns(event) {
     event.preventDefault();
+
+    // Get the current dataset filename from localStorage
+    let currentDatasetFilename = localStorage.getItem('currentDatasetFilename');
 
     let renameForm = document.getElementById('renameForm');
     console.log(renameForm);  // Print the form
@@ -134,9 +156,14 @@ async function renameColumns(event) {
     let validationMessage = '';
 
     // Iterate over the form elements in pairs (old name, new name)
-    for (let i = 0; i < renameForm.elements.length - 1; i += 2) {
-        let oldName = renameForm.elements[i].value;
-        let newName = renameForm.elements[i + 1].value;
+    for (let i = 0; i < renameForm.elements.length - 1; i += 3) {
+        let oldName = renameForm.elements[i + 1].value;
+        let newName = renameForm.elements[i + 2].value;
+
+        // Check if the delete checkbox is checked
+        if (document.getElementById('delete_' + oldName).checked) {
+            continue; // If checked, skip this column
+        }
 
         if (!newName) {
             newName = oldName; // If no new name provided, use the old name
@@ -167,7 +194,7 @@ async function renameColumns(event) {
 
     // Convert the column name mappings to a JSON string
     let jsonMappings = JSON.stringify({
-        filename: cleaned_dataset_file,
+        filename: currentDatasetFilename,
         mappings: columnMappings
     });
 

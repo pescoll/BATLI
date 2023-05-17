@@ -13,7 +13,8 @@
         #numberOfWells,
         #numberOfTimepoints,
         #numberOfCells,
-        #elapsedTime {
+        #elapsedTime,
+        #currentDataset {
           font-size: 12px;
           line-height: 0.5;
         }
@@ -38,11 +39,19 @@
     <p id="numberOfTimepoints"></p>
     <p id="numberOfCells"></p>
     </div>
+    <p style="font-size: 12px;">Current Dataset: <span id="currentDataset"></span></p>
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            const currentDatasetFilename = localStorage.getItem('currentDatasetFilename');
+            if (currentDatasetFilename) {
+                document.getElementById('currentDataset').textContent = `Current dataset: ${currentDatasetFilename}`;
+            } else {
+                document.getElementById('currentDataset').textContent = 'No dataset loaded.';
+            }
+        });
+    </script>
     <div id="plotArea" style="display: none;"> <!-- Set the style to none to hide it initially -->
         <img id="plotImage" src="" alt="Plot of number of unique cells per well">
-    </div>
-    <div id="plotArea2" style="display: none;"> <!-- This is the new plot area for plot 2 -->
-        <img id="plotImage2" src="" alt="Plot 2">
     </div>
     <table id="first-rows-table">
         <tbody></tbody>

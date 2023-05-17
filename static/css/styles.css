@@ -114,8 +114,8 @@ input[type=file]:hover {
 
 #renameForm label {
     display: inline-block;
-    width: 100px;
-    text-align: right;
+    width: 120px;
+    text-align: left;
     margin-left: 10px;
     font-size: 0.8em;
 }
@@ -125,3 +125,10 @@ input[type=file]:hover {
     width: 200px;
     font-size: 0.8em;
 }
+
+.deleteCheckbox {
+    margin-left: 0.5em;
+}
+
+
+

@@ -321,13 +321,55 @@ def get_first_rows():
     
     return jsonify(response), 200
 
+# VIEWER
+@app.route('/viewer')
+def viewer():
+    return render_template('viewer.html')
 
+@app.route('/plot2')
+def plot2():
+    global current_filename
+    if current_filename is None:
+        return jsonify({'message': 'No file loaded'}), 400
+    cells_df = pd.read_csv(os.path.join(app.config['UPLOAD_FOLDER'], current_filename))
+    
+    #input conditions among parameters
+    
+    conditions = cells_df['bact'].unique()
 
+    #input parameter to plot among parameters
+
+    column_to_plot = 'tmrm_sdmean'
+    try:
+        fig, axs = plt.subplots(1,2, figsize=(12,4))
+
+        for ax, strain in zip(axs, strains):
+            _df = cells_df[ cells_df['bact']==strain ] 
+            ax.set_title(strain) 
+            ax.set_ylabel(column_to_plot)
+            ax.set_xlabel('time')
+            for k, v in _df.groupby('cell_lbl').groups.items(): 
+                _df = cells_df.loc[v] 
+                ax.plot( _df['t'], _df[column_to_plot], alpha=0.2)
+
+        timestamp = int(time.time())
+        plot2_path = f"plot_single_cells_{current_filename}_{timestamp}.png"
+        plt.savefig('plots/' + plot2_path)
+    except Exception as e:
+        app.logger.error(f'Error generating plot: {e}')
+        return jsonify({'message': f'Error generating plot: {e}'}), 500
+
+    response = {
+        'message': 'Plot 2 created successfully',
+        'plot_url': url_for('serve_plots', path=plot2_path)
+    }
+
+    return jsonify(response), 200
 
 
 
 if __name__ == '__main__':
-    app.run(port=5060)
+    app.run(port=5000)
 
 
 

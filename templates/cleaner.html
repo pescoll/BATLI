@@ -12,7 +12,8 @@
         #numberOfWells,
         #numberOfTimepoints,
         #numberOfCells,
-        #elapsedTime {
+        #elapsedTime,
+        #currentDataset {
           font-size: 12px;
           line-height: 0.5;
         }
@@ -39,6 +40,18 @@
     <p id="elapsedTime"></p>
     </div>
     <h2>Standarize Parameter Names</h2>
+    <p style="font-size: 12px;">Current Dataset: <span id="currentDataset"></span></p>
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            const currentDatasetFilename = localStorage.getItem('currentDatasetFilename');
+            if (currentDatasetFilename) {
+                document.getElementById('currentDataset').textContent = currentDatasetFilename;
+            } else {
+                document.getElementById('currentDataset').textContent = 'No dataset loaded.';
+            }
+        });
+    </script>
+    <button onclick="getColumnNamesAndPopulateForm()">Edit Parameters</button>
     <form id="renameForm" onsubmit="renameColumns(event)">
     <div id="renameFields"></div>
     <button type="submit">Rename Parameters</button>

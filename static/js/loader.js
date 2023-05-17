@@ -1,3 +1,6 @@
+var currentDatasetFilename = localStorage.getItem('currentDatasetFilename');
+
+
 async function loadCleanedDataset() {
     const fileInput = document.getElementById('cleanedFileInput');
     if (fileInput.files.length === 0) {
@@ -38,6 +41,18 @@ async function loadCleanedDataset() {
             if (response.ok) {
                 const data = await response.json();
                 alert(data.message);
+
+                // Update HTML elements and filename
+                let filename = file.name;
+                
+                // Save the filename to localStorage
+                localStorage.setItem('currentDatasetFilename', filename);
+                
+                // Update the HTML element to display the filename
+                let filenameElement = document.getElementById('currentDataset');
+                filenameElement.textContent = `${filename}`;
+
+
                 document.getElementById('plateName').textContent = `Plate Name: ${data.database_info['Plate Name']}`;
                 document.getElementById('measurement').textContent = `Measurement: ${data.database_info['Measurement']}`;
                 document.getElementById('evaluation').textContent = `Evaluation: ${data.database_info['Evaluation']}`;
@@ -55,7 +70,10 @@ async function loadCleanedDataset() {
                 const tableBody = document.getElementById('first-rows-table').getElementsByTagName('tbody')[0];
                 tableBody.innerHTML = '';  // Clear the table body
                 createTable(firstRows);
-            
+
+                // Log the filename in the console
+                console.log(`Current dataset filename: ${filename}`);             
+
             } else {
                 alert('Error loading dataset');
             }
@@ -68,7 +86,8 @@ async function loadCleanedDataset() {
     }, 100);
 }
 
-async function getFirstRows(filename) {
+async function getFirstRows() {
+    let filename = localStorage.getItem('currentDatasetFilename');
     const response = await fetch(`/get_first_rows?filename=${encodeURIComponent(filename)}`);
     const responseText = await response.text();
     console.log(responseText);

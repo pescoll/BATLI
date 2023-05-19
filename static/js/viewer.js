@@ -29,10 +29,16 @@ function showPlot2() {
     
     var percentageInput = document.getElementById('percentageInput').value;
 
+    var yMinInput = document.getElementById('yMin').value || null; 
+    var yMaxInput = document.getElementById('yMax').value || null; 
+
     var selectedCondition = conditionsDropdown.options[conditionsDropdown.selectedIndex].value;
     var selectedParameter = parametersDropdown.options[parametersDropdown.selectedIndex].value;
 
-    axios.post('/plot2', { condition: selectedCondition, parameter: selectedParameter, percentage: percentageInput })
+    var normalizationDropdown = document.getElementById('normalizationDropdown');
+    var selectedNormalization = normalizationDropdown.options[normalizationDropdown.selectedIndex].value;
+
+    axios.post('/plot2', { condition: selectedCondition, parameter: selectedParameter, percentage: percentageInput, yMin: yMinInput, yMax: yMaxInput, normalization: selectedNormalization })
     .then((response) => {
         const plotArea2 = document.getElementById('plotArea2');
         // Clear out the old images

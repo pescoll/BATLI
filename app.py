@@ -404,6 +404,14 @@ def plot2():
     t_min = cells_df['t'].min()
     t_max = cells_df['t'].max()
 
+    yMin = data.get('yMin')
+    yMax = data.get('yMax')
+
+    if yMin is not None:
+        yMin = float(yMin)
+    if yMax is not None:
+        yMax = float(yMax)
+
     # Find the total number of unique 't' values in the dataframe
     total_timepoints = len(cells_df['t'].unique())
     required_timepoints = total_timepoints * percentage // 100
@@ -423,11 +431,14 @@ def plot2():
     
     sub_df = filtered_cells_df[selected_condition].unique()
 
+    float('inf')  # Returns: inf
+    float('-inf')  # Returns: -inf
+
     plot_urls = []
 
     try:
         for condition_value in sub_df:
-            _df = cells_df[cells_df[selected_condition] == condition_value]
+            _df = filtered_cells_df[filtered_cells_df[selected_condition] == condition_value]  # Use filtered_cells_df here
             _df['t'] = _df['t'].astype(int)
             _df.sort_values(by=['cell_lbl', 't'], inplace=True)  # Sort by 'cell_lbl' and 't'
 
@@ -436,7 +447,18 @@ def plot2():
             ax.set_title(condition_value)
             ax.set_ylabel(selected_parameter)
             ax.set_xlabel('time')
+            if yMin is not None and yMax is not None:
+                ax.set_ylim(yMin, yMax)
 
+            normalization = data['normalization']
+
+            if normalization == 't0':
+                # Normalize the data to t=0
+                for cell_lbl, group in _df.groupby('cell_lbl'):
+                    t0_value = group.loc[group['t'].idxmin(), selected_parameter]
+                    group[selected_parameter] /= t0_value
+                    _df.loc[group.index, selected_parameter] = group[selected_parameter]
+     
             # Set the x-axis limit for each plot
             ax.set_xlim(t_min, t_max)
 
@@ -464,7 +486,5 @@ def plot2():
 
 
 
-
-
 if __name__ == '__main__':
-    app.run(port=5025)
+    app.run(port=5033)

@@ -5,4 +5,4 @@ def print_column_data_types(filename):
     print(df.dtypes)
 
 # Replace with your filename
-print_column_data_types('/Users/pedroescoll/Documents/GitHub/backward_analysis/cleaned_dataset_EP167_Measurement_1_Evaluation2_Population_-_Infected.csv')
+print_column_data_types('/Users/pedro/Documents/GitHub/backward_analysis/cleaned_dataset_EP128REDUCED-W1-TMRM_Measurement_1_Evaluation10_Population_-_Cells.csv')

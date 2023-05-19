@@ -63,6 +63,15 @@ h2 {
     height: auto;
 }
 
+#plotArea2 {
+    max-width: 66vw;
+}
+
+#plotArea2 img {
+    max-width: 100%;
+    height: auto;
+}
+
 .button-container {
     display: flex;
     justify-content: center;
@@ -130,5 +139,7 @@ input[type=file]:hover {
     margin-left: 0.5em;
 }
 
-
+#percentageInput label {
+    font-size: 0.8em;
+}
 

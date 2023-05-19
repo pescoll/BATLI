@@ -14,6 +14,9 @@ matplotlib.use('Agg')
 from werkzeug.utils import secure_filename
 import urllib.parse
 import glob
+from collections import OrderedDict
+import datetime
+
 
 def allowed_file(filename):
     ALLOWED_EXTENSIONS = {'csv', 'txt', 'json'}
@@ -26,44 +29,34 @@ app = Flask(__name__)
 
 app.config['UPLOAD_FOLDER'] = './'
 
-def clean_dataframe(df, database_info):
+def clean_dataframe(df, database_info):  # Basic cleaning and creation of unique well IDs and unique cell IDs
     population = database_info["Population"]
     prefix = population.replace("Population - ", "") + " - "
     
     df.columns = [c.replace(prefix, '').replace(' [µm]', '_um').replace('µm', 'um') if isinstance(c, str) else c for c in df.columns]
 
-    # # create a dictionary with old/new names
-    # col_names = {'Row'          : 'row',
-    #              'Column'       : 'col',
-    #              'Plane'        : 'plane',
-    #              'Timepoint'    : 't',
-    #              'Field'        : 'field',
-    #              'Object No'    : 'N',
-    #              'X'            : 'x',
-    #              'Y'            : 'y', 
-    #              'Bounding Box' : 'bbox',
-    #              'Position X_um': 'pos_x_um',
-    #              'Position Y_um': 'pos_y_um',
-    #              'Bacteria'     : 'bact',
-    #              'Track Point X': 'track_point_x',
-    #              'Track Point Y': 'track_point_y',
-    #              'Age [s]'      : 'age_s',
-    #              'Current Displacement X_um': 'disp_x_um',
-    #              'Current Displacement Y_um': 'disp_y_um',
-    #              'Current Speed [um/s]'     : 'speed_um_s',
-    #              'Number of Legio- per Cell '      : 'leg_n',
-    #              'Legio Area [µm²]- Sum per Cell ' : 'leg_area',
-    #              'SER TMRM SER Edge 0.535331905782 um' : 'mito_frag',
-    #              'SD/Mean TMRM'    : 'tmrm_sdmean',
-    #              'Intensity AnnexinV-647 Mean' :'annexin_mfi', 
-    #              'Intensity Nucleus HOECHST 33342 Mean' : 'hoechst_mfi',
-    #              'Number of Legio- per Cell '      : 'leg_n',
-    #              'Legio Area [µm²]- Sum per Cell ' : 'leg_area',
-    #              'Infected'        : 'infected'
-    #             }
+    # create a dictionary with old/new names
+    col_names = {'Row'          : 'row',
+                 'Column'       : 'col',
+                 'Plane'        : 'plane',
+                 'Timepoint'    : 't',
+                 'Field'        : 'field',
+                 'Object No'    : 'N',
+                 'X'            : 'x',
+                 'Y'            : 'y', 
+                 'Bounding Box' : 'bbox',
+                 'Position X_um': 'pos_x_um',
+                 'Position Y_um': 'pos_y_um',
+                 'Track Point X': 'track_point_x',
+                 'Track Point Y': 'track_point_y',
+                 'Age [s]'      : 'age_s',
+                 'Current Displacement X_um': 'disp_x_um',
+                 'Current Displacement Y_um': 'disp_y_um',
+                 'Current Speed [um/s]'     : 'speed_um_s'
+                }
 
-    # # rename the columns
-    # df = df.rename(columns = col_names)
+    # rename the columns
+    df = df.rename(columns = col_names)
 
     # add a unique well ID
     df['well_id'] = -1  
@@ -77,34 +70,81 @@ def clean_dataframe(df, database_info):
             _well_id += 1 
             df.loc[inds, 'well_id'] = _well_id
 
-    # create unique cell id
-    gr = df.groupby(['well_id', 'field', 'N'])
+    # # Assign unique cell labels to each row in one line
+    # df['cell_lbl'] = 'w' + df['well_id'].astype(str) + '_f' + df['field'].astype(str) + '_c' + df['N'].astype(str)
 
-    # Initialize an empty list to store all subsets.
-    dfs_to_concat = []
+    # # Sort values by 'cell_lbl' and 't' as before
+    # df.sort_values(['cell_lbl', 't'], inplace=True)
 
-    for k, v in gr.groups.items():
-        w, f, c = k
-        _df = df.loc[v].sort_values('t')
-        try:
-            _cell_id = 'w%d_f%d_c%d' % (w, int(f), int(c))  # Convert f and c to integers
-        except ValueError:
-            print(f"Could not convert {f} or {c} to integer.")
-            continue
-        _df['cell_lbl'] = _cell_id
 
-        # Append this subset to the list of dataframes to concatenate.
-        dfs_to_concat.append(_df)  
+    # # First, create the 'cell_lbl' column as before
+    # df['cell_lbl'] = 'w' + df['well_id'].astype(str) + '_f' + df['field'].astype(str) + '_c' + df['N'].astype(str)
 
-        # Concatenate all dataframes in the list after the loop.
-        cells_df = pd.concat(dfs_to_concat) 
-    
+    # # Now group by 'cell_lbl'
+    # groups = df.groupby('cell_lbl')
+
+    # # For each group, sort by 't', then collect all groups back into a list of dataframes
+    # dfs_sorted = [group.sort_values('t') for _, group in groups]
+
+    # # Now concatenate all the sorted dataframes back together in one step, respecting the original order
+    # df = pd.concat(dfs_sorted)
+
+    # First, create the 'cell_lbl' column as before
+    df['cell_lbl'] = 'w' + df['well_id'].astype(str) + '_f' + df['field'].astype(str) + '_c' + df['N'].astype(str)
+
+    # Now group by 'cell_lbl'
+    groups = df.groupby('cell_lbl')
+
+    # Make an ordered percentage and sort by time for each group
+    ordered_groups = OrderedDict((name, wet.sort_values(by='t')) for name, wet in groups)
+
+    # Concatenate all the sorted dataframes back together in one step
+    cells_df = pd.concat(ordered_groups.values())
+
+    # Substitute NaN with an empty string
+    cells_df = cells_df.fillna('')
+
+    # Organize the table
+    cells_df = cells_df.sort_values(['well_id', 't'])
+
+    # you can change 'cell_lbl' to be the index if needed, by doing this:
+    # df.set_index('cell_lbl', inplace=True)
+    # and if you still need to sort and split the DataFrame into smaller dataframes, you can use:
+    # dfs_to_concat = [group.sort_values('t') for _, group in df.groupby('cell_lbl')]
+
+    # OLD CODE DMITRY:
+    # # create unique cell id
+    # gr = df.groupby(['well_id', 'field', 'N'])
+    # # Initialize an empty list to store all subsets.
+    # dfs_to_concat = []
+    # for k, v in gr.groups.items():
+    #     w, f, c = k
+    #     _df = df.loc[v].sort_values('t')
+    #     try:
+    #         _cell_id = 'w%d_f%d_c%d' % (w, int(f), int(c))  # Convert f and c to integers
+    #     except ValueError:
+    #         print(f"Could not convert {f} or {c} to integer.")
+    #         continue
+    #     _df['cell_lbl'] = _cell_id
+
+    #     # Append this subset to the list of dataframes to concatenate.
+    #     dfs_to_concat.append(_df)  
+
+    #     # Concatenate all dataframes in the list after the loop.
+    #     cells_df = pd.concat(dfs_to_concat)
+
+    #     print(_cell_id)
+
+    print(cells_df.columns)  # print column names before the operation
+    cells_df.columns = cells_df.columns.str.lower().str.replace(' ', '_')
+    print(cells_df.columns)  # print column names after the operation
+
     return cells_df
 
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('loader.html')
 
 @app.route('/plots/<path:path>')
 def serve_plots(path):
@@ -113,6 +153,11 @@ def serve_plots(path):
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '-1'
     return response
+
+# CLEANER
+@app.route('/cleaner')
+def cleaner():
+    return render_template('cleaner.html')
 
 @app.route('/load_dataset', methods=['POST'])
 def load_dataset():
@@ -145,6 +190,7 @@ def load_dataset():
     # Generate the database_info file name
     dataset_info_name = f"dataset_info_{database_info['Plate Name']}_{database_info['Measurement']}_{database_info['Evaluation']}_{database_info['Population']}.json"
     dataset_info_name = dataset_info_name.replace(' ', '_')
+    print(database_info)
 
     with open(dataset_info_name, 'w') as f:
         json.dump(database_info, f)
@@ -153,7 +199,6 @@ def load_dataset():
     cells_df = clean_dataframe(df, database_info)
     end_time = time.time()
     elapsed_time = end_time - start_time
-
 
     # Convert the elapsed time to hours, minutes, and seconds
     m, s = divmod(elapsed_time, 60)
@@ -166,17 +211,78 @@ def load_dataset():
     cleaned_dataset_name = cleaned_dataset_name.replace(' ', '_')
 
     # Save the cleaned dataset as a CSV file
-    print("Saving cleaned dataset")
+    print("Saving pre-processed dataset")
     cells_df.to_csv(cleaned_dataset_name, index=False)
 
     response = {
-        'message': 'Dataset was cleaned and pre-processed',
+        'message': 'Dataset was loaded and pre-processed',
         'database_info': database_info,
+        'number_of_wells': len(cells_df['well_id'].unique()),
+        'number_of_timepoints': len(cells_df['t'].unique()),
+        'number_of_cells': len(cells_df['cell_lbl'].unique()),
         'elapsed_time': elapsed_time_str,
     }
+    print(response)
 
-    return jsonify(response)
-     
+    # Update the response with the cleaned dataset filename
+    response.update({
+    "cleaned_dataset_file": cleaned_dataset_name,
+    "filename": cleaned_dataset_name
+    })
+
+    response = jsonify(response)
+    response.headers['Content-Type'] = 'application/json'
+    print(response)
+    return response
+
+@app.route('/get_column_names', methods=['POST'])
+def get_column_names():
+    data = request.get_json()
+    filename = data.get('filename')
+
+    if not filename:
+        return jsonify({'message': 'Missing filename parameter'}), 400
+
+    df = pd.read_csv(filename)
+    column_names = df.columns.tolist()
+    print(type(column_names))  # check the type of column_names
+    print(column_names)  # log the column names
+    return jsonify(column_names)
+
+@app.route('/rename_columns', methods=['POST'])
+def rename_columns():
+    data = request.get_json()
+
+    filename = data.get('filename')
+    mappings = data.get('mappings')
+
+    if not filename or not mappings:
+        return jsonify({'message': 'Missing filename or mappings parameter'}), 400
+
+    try:
+        df = pd.read_csv(filename)
+        df.rename(columns=mappings, inplace=True)
+        df.to_csv(filename, index=False)
+
+        # Save the mappings as a json file
+        with open(f'new_param_{filename}', 'w') as file:
+            json.dump(mappings, file)
+
+        return jsonify({'message': 'Columns renamed successfully'})
+
+    except FileNotFoundError:
+        return jsonify({'message': f'File not found: {filename}'}), 404
+    except Exception as e:
+        return jsonify({'message': str(e)}), 500
+
+
+
+# LOADER
+
+@app.route('/loader')
+def loader():
+    return render_template('loader.html')
+
 @app.route('/load_cleaned_dataset', methods=['POST'])
 def load_cleaned_dataset():
     print("load_cleaned_dataset() called")
@@ -255,48 +361,110 @@ def get_first_rows():
     if not os.path.exists(cleaned_dataset_path):
         return jsonify({'message': 'File not found'}), 404
 
-    df = pd.read_csv(cleaned_dataset_path, nrows=5)
+    df = pd.read_csv(cleaned_dataset_path, nrows=20)
     df = df.fillna('NaN')
     response = {
+        'headers': list(df.columns),
         'first_rows': df.to_dict(orient='records'),
     }
     
     return jsonify(response), 200
 
-@app.route('/plot2')
+# VIEWER
+@app.route('/viewer')
+def viewer():
+    return render_template('viewer.html')
+
+@app.route('/get_parameter_names', methods=['GET'])
+def get_parameter_names():
+    if current_filename is None:
+        return jsonify({'message': 'No file loaded'}), 400
+    cells_df = pd.read_csv(os.path.join(app.config['UPLOAD_FOLDER'], current_filename))
+    conditions_cols = ['bacteria', 'bact', 'compound', 'treatment', 'pre-treatment'] # list of conditions columns
+    condition_cols = [col for col in conditions_cols if col in cells_df.columns]
+    column_names = cells_df.select_dtypes(include=[np.number]).columns.tolist()
+    print(condition_cols)
+    print(column_names)
+    return jsonify({'condition_cols': condition_cols, 'column_names': column_names}), 200
+
+@app.route('/plot2', methods=['POST'])
 def plot2():
     global current_filename
     if current_filename is None:
         return jsonify({'message': 'No file loaded'}), 400
+
+    data = request.get_json()
+    selected_condition = data['condition']
+    selected_parameter = data['parameter']
+    percentage = int(data['percentage'])
+
     cells_df = pd.read_csv(os.path.join(app.config['UPLOAD_FOLDER'], current_filename))
-    strains = cells_df['bact'].unique()
 
-    column_to_plot = 'tmrm_sdmean'
+    # Find the global minimum and maximum 't' values
+    t_min = cells_df['t'].min()
+    t_max = cells_df['t'].max()
+
+    # Find the total number of unique 't' values in the dataframe
+    total_timepoints = len(cells_df['t'].unique())
+    required_timepoints = total_timepoints * percentage // 100
+
+    # Define a function to test if a cell_lbl's track length is above the required threshold
+    def test_length(x):
+        return len(x) >= required_timepoints
+
+    print("Total timepoints: ", total_timepoints)
+    print("Required timepoints: ", required_timepoints)
+
+    # Filter the dataframe to only include cell_lbl's that pass the test_length function
+    filtered_cells_df = cells_df[cells_df.groupby('cell_lbl')['t'].transform(test_length)].copy()
+    
+    print("Number of unique cell_lbl in original df: ", len(cells_df['cell_lbl'].unique()))
+    print("Number of unique cell_lbl in filtered df: ", len(filtered_cells_df['cell_lbl'].unique()))
+    
+    sub_df = filtered_cells_df[selected_condition].unique()
+
+    plot_urls = []
+
     try:
-        fig, axs = plt.subplots(1,2, figsize=(12,4))
+        for condition_value in sub_df:
+            _df = cells_df[cells_df[selected_condition] == condition_value]
+            _df['t'] = _df['t'].astype(int)
+            _df.sort_values(by=['cell_lbl', 't'], inplace=True)  # Sort by 'cell_lbl' and 't'
 
-        for ax, strain in zip(axs, strains):
-            _df = cells_df[ cells_df['bact']==strain ] 
-            ax.set_title(strain) 
-            ax.set_ylabel(column_to_plot)
+            fig, ax = plt.subplots(figsize=(12, 4))  # New figure for each condition
+
+            ax.set_title(condition_value)
+            ax.set_ylabel(selected_parameter)
             ax.set_xlabel('time')
-            for k, v in _df.groupby('cell_lbl').groups.items(): 
-                _df = cells_df.loc[v] 
-                ax.plot( _df['t'], _df[column_to_plot], alpha=0.2)
 
-        timestamp = int(time.time())
-        plot2_path = f"plot_single_cells_{current_filename}_{timestamp}.png"
-        plt.savefig('plots/' + plot2_path)
+            # Set the x-axis limit for each plot
+            ax.set_xlim(t_min, t_max)
+
+            for k, v in _df.groupby('cell_lbl').groups.items():
+                single_cell_df = _df.loc[v]  # Subset of data that has only one cell
+                ax.plot(single_cell_df['t'], single_cell_df[selected_parameter], alpha=0.2)
+
+            timestamp = datetime.datetime.now().strftime("%d%m%y-%H%M%S")
+            plot2_path = f"plot_single_cells_{current_filename}_{timestamp}.png"
+            plt.savefig('plots/' + plot2_path)
+
+            plot_urls.append(url_for('serve_plots', path=plot2_path))
+
+
     except Exception as e:
         app.logger.error(f'Error generating plot: {e}')
         return jsonify({'message': f'Error generating plot: {e}'}), 500
 
     response = {
-        'message': 'Plot 2 created successfully',
-        'plot_url': url_for('serve_plots', path=plot2_path)
+        'message': 'Plots created successfully',
+        'plot_urls': plot_urls  # Return multiple plot URLs
     }
 
     return jsonify(response), 200
 
+
+
+
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(port=5025)

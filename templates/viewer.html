@@ -6,7 +6,8 @@
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico" />
     <style>
-        #currentDataset {
+        #currentDataset,
+        #percentageInput {
           font-size: 12px;
           line-height: 0.5;
         }
@@ -19,15 +20,29 @@
         <a href="/backward_analysis">Backward Analysis</a>
     </nav>
     <h2>Dataset</h2>
-    <p id="currentDataset"></p>
-    <button onclick="showPlot2()">Show Single Cell Plot</button>
+    <p style="font-size: 12px;">Current Dataset: <span id="currentDataset"></span></p>
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            const currentDatasetFilename = localStorage.getItem('currentDatasetFilename');
+            if (currentDatasetFilename) {
+                document.getElementById('currentDataset').textContent = currentDatasetFilename;
+            } else {
+                document.getElementById('currentDataset').textContent = 'No dataset loaded.';
+            }
+        });
+    </script>
+    <div id="loadingMessage" class="blinking" style="display: none;">Working in your graphs...</div>
+    <select id="conditionsDropdown">
+    </select>
+    <select id="parametersDropdown">
+    </select>    
+    <button id="showPlot2Button" onclick="showPlot2()">Show Single Cell Plots</button>
+    <label for="percentageInput" style="font-size: 0.8em;">Timepoints Length (%) :</label>
+    <input type="number" id="percentageInput" min="1" max="100" value="100" style="font-size: 0.6em;">
     <div id="plotArea2" style="display: none;"> <!-- This is the new plot area for plot 2 -->
-        <img id="plotImage2" src="" alt="Plot 2">
+        <img id="plotImage2" src="">
     </div>
-    <table id="first-rows-table">
-        <tbody></tbody>
-    </table>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <script src="static/js/loader.js"></script>
+    <script src="static/js/viewer.js"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory, url_for, send_file
+from flask import Flask, render_template, request, jsonify, send_from_directory, url_for, send_file, abort
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -16,6 +16,7 @@ import urllib.parse
 import glob
 from collections import OrderedDict
 import datetime
+import shutil
 
 
 def allowed_file(filename):
@@ -395,6 +396,7 @@ def plot2():
 
     data = request.get_json()
     selected_condition = data['condition']
+    selected_second_condition = data.get('secondCondition')  # This will be None if not provided
     selected_parameter = data['parameter']
     percentage = int(data['percentage'])
 
@@ -437,14 +439,32 @@ def plot2():
     plot_urls = []
 
     try:
-        for condition_value in sub_df:
-            _df = filtered_cells_df[filtered_cells_df[selected_condition] == condition_value]  # Use filtered_cells_df here
+        if selected_second_condition and selected_second_condition != 'none':
+            condition_combinations = filtered_cells_df[[selected_condition, selected_second_condition]].drop_duplicates().values.tolist()
+        else:
+            condition_combinations = [(value,) for value in filtered_cells_df[selected_condition].unique()]
+
+        print(f"Condition combinations: {condition_combinations}")  # print to debug
+
+        for condition_values in condition_combinations:
+            if len(condition_values) == 2:
+                _df = filtered_cells_df[(filtered_cells_df[selected_condition] == condition_values[0]) & (filtered_cells_df[selected_second_condition] == condition_values[1])]
+                num_cells = len(_df['cell_lbl'].unique())
+                plot_title = f"{condition_values[0]} - {condition_values[1]} (n = {num_cells} cells)"  # Set the plot title with both condition values
+            elif len(condition_values) == 1:
+                _df = filtered_cells_df[filtered_cells_df[selected_condition] == condition_values[0]]
+                num_cells = len(_df['cell_lbl'].unique())
+                plot_title = f"{condition_values[0]} (n = {num_cells} cells)"  # Set the plot title with only one condition value
+            else:
+                continue  # if there are no conditions, continue to the next iteration
+
+            _df = _df.copy()
             _df['t'] = _df['t'].astype(int)
             _df.sort_values(by=['cell_lbl', 't'], inplace=True)  # Sort by 'cell_lbl' and 't'
 
             fig, ax = plt.subplots(figsize=(12, 4))  # New figure for each condition
 
-            ax.set_title(condition_value)
+            ax.set_title(plot_title)
             ax.set_ylabel(selected_parameter)
             ax.set_xlabel('time')
             if yMin is not None and yMax is not None:
@@ -458,7 +478,34 @@ def plot2():
                     t0_value = group.loc[group['t'].idxmin(), selected_parameter]
                     group[selected_parameter] /= t0_value
                     _df.loc[group.index, selected_parameter] = group[selected_parameter]
-     
+                    # if t0_value == 0:
+                    #     t0_value = 1e-10  # Substitute a small positive number for t0_value
+                    # group[selected_parameter] /= t0_value
+                    # _df.loc[group.index, selected_parameter] = group[selected_parameter]
+            
+            # Normalize custom
+            elif normalization == 'custom':
+                range_start = int(data.get('range_start', 0))
+                range_end = int(data.get('range_end', 4))
+
+                for cell_lbl, group in _df.groupby('cell_lbl'):
+                    average_value = group[(group['t'] >= range_start) & (group['t'] <= range_end)][selected_parameter].mean()
+                    if average_value != 0:  # Avoid division by zero
+                        group[selected_parameter] /= average_value
+                        _df.loc[group.index, selected_parameter] = group[selected_parameter]
+
+                # Delta normalization
+                # elif normalization == 'delta':
+                #     for cell_lbl, group in _df.groupby('cell_lbl'):
+                #         group[selected_parameter] = group[selected_parameter] / group[selected_parameter].shift(1)
+                #         _df.loc[group.index, selected_parameter] = group[selected_parameter]
+
+            elif normalization == 'delta':
+                for cell_lbl, group in _df.groupby('cell_lbl'):
+                    group[selected_parameter] = group[selected_parameter].diff()
+                    _df.loc[group.index, selected_parameter] = group[selected_parameter]
+
+
             # Set the x-axis limit for each plot
             ax.set_xlim(t_min, t_max)
 
@@ -466,12 +513,14 @@ def plot2():
                 single_cell_df = _df.loc[v]  # Subset of data that has only one cell
                 ax.plot(single_cell_df['t'], single_cell_df[selected_parameter], alpha=0.2)
 
+            
             timestamp = datetime.datetime.now().strftime("%d%m%y-%H%M%S")
-            plot2_path = f"plot_single_cells_{current_filename}_{timestamp}.png"
+            condition_names = '_'.join(str(condition) for condition in condition_values)
+            plot2_path = f"plot_single_cells_{condition_names}_{current_filename}_{timestamp}.png"
+            _df.to_csv(f"tables/table_{plot2_path.split('.')[0]}.csv")
             plt.savefig('plots/' + plot2_path)
 
             plot_urls.append(url_for('serve_plots', path=plot2_path))
-
 
     except Exception as e:
         app.logger.error(f'Error generating plot: {e}')
@@ -484,7 +533,22 @@ def plot2():
 
     return jsonify(response), 200
 
+@app.route('/download', methods=['GET'])
+def download_results():
+    try:
+        # create zip file
+        shutil.make_archive("results", 'zip', "plots/")
+        timestamp = datetime.datetime.now().strftime("%d%m%y-%H%M%S")
+        zipfilename=f"results_{timestamp}"
+        return send_file(zipfilename,
+                         mimetype='zip',
+                         attachment_filename=zipfilename,
+                         as_attachment=True)
+    except FileNotFoundError:
+        abort(404)
 
+
+# BACKWARD ANALYSIS
 
 if __name__ == '__main__':
-    app.run(port=5033)
+    app.run(port=5000)

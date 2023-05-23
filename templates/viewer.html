@@ -31,14 +31,18 @@
             }
         });
     </script>
-    <div id="loadingMessage" class="blinking" style="display: none;">Working in your graphs...</div>
+    <div id="loadingMessage" class="blinking" style="display: none;">Working with your graphs...</div>
     <select id="conditionsDropdown">
     </select>
+    <select id="secondConditionDropdown">
+        <option value="none">None</option>
+        <!-- Options will be populated dynamically -->
+    </select>    
     <select id="parametersDropdown">
     </select>    
     <button id="showPlot2Button" onclick="showPlot2()">Show Single Cell Plots</button>
     <br>
-    <label for="percentageInput" style="font-size: 0.8em;">Timepoints Length (%) :</label>
+    <label for="percentageInput" style="font-size: 0.8em;">Min Tracks Length (%) :</label>
     <input type="number" id="percentageInput" min="1" max="100" value="100" style="font-size: 0.6em;">
     <div class="form-group">
         <label for="yMin" style="font-size: 0.8em;">Y Range: </label>
@@ -48,11 +52,20 @@
     <label for="normalizationDropdown" style="font-size: 0.8em;">Normalization :</label>
     <select id="normalizationDropdown">
         <option value="none">none</option>
-        <option value="t0">to t=0</option>
-    </select>      
+        <option value="t0">to 1st timepoint</option>
+        <option value="custom">custom</option>
+        <option value="delta">delta</option>
+    </select>
+    <div id="customRange" style="display: none;">
+        <label for="rangeStart" style="font-size: 0.8em;">custom: Range Start:</label>
+        <input type="number" id="rangeStart" name="rangeStart" min="0" value="0" style="font-size: 0.6em;">
+        <label for="rangeEnd" style="font-size: 0.8em;">Range End:</label>
+        <input type="number" id="rangeEnd" name="rangeEnd" min="0" value="4" style="font-size: 0.6em;">
+    </div>      
     <div id="plotArea2" style="display: none;"> <!-- This is the new plot area for plot 2 -->
         <img id="plotImage2" src="">
     </div>
+    <a href="/download">Download results</a>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="static/js/viewer.js"></script>
 </body>

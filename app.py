@@ -28,7 +28,7 @@ current_filename = None
 
 app = Flask(__name__)
 
-app.config['UPLOAD_FOLDER'] = './'
+app.config['UPLOAD_FOLDER'] = 'user_data/'
 
 def clean_dataframe(df, database_info):  # Basic cleaning and creation of unique well IDs and unique cell IDs
     population = database_info["Population"]
@@ -71,22 +71,17 @@ def clean_dataframe(df, database_info):  # Basic cleaning and creation of unique
             _well_id += 1 
             df.loc[inds, 'well_id'] = _well_id
 
+    # # Previous code Dmitry:
     # # Assign unique cell labels to each row in one line
     # df['cell_lbl'] = 'w' + df['well_id'].astype(str) + '_f' + df['field'].astype(str) + '_c' + df['N'].astype(str)
-
     # # Sort values by 'cell_lbl' and 't' as before
     # df.sort_values(['cell_lbl', 't'], inplace=True)
-
-
     # # First, create the 'cell_lbl' column as before
     # df['cell_lbl'] = 'w' + df['well_id'].astype(str) + '_f' + df['field'].astype(str) + '_c' + df['N'].astype(str)
-
     # # Now group by 'cell_lbl'
     # groups = df.groupby('cell_lbl')
-
     # # For each group, sort by 't', then collect all groups back into a list of dataframes
     # dfs_sorted = [group.sort_values('t') for _, group in groups]
-
     # # Now concatenate all the sorted dataframes back together in one step, respecting the original order
     # df = pd.concat(dfs_sorted)
 
@@ -104,6 +99,9 @@ def clean_dataframe(df, database_info):  # Basic cleaning and creation of unique
 
     # Substitute NaN with an empty string
     cells_df = cells_df.fillna('')
+
+    # Replace non-alphanumeric characters (excluding periods and underscores) in string values with underscores
+    cells_df.replace({r'[^a-zA-Z0-9_.]': '_'}, regex=True, inplace=True)
 
     # Organize the table
     cells_df = cells_df.sort_values(['well_id', 't'])
@@ -147,13 +145,22 @@ def clean_dataframe(df, database_info):  # Basic cleaning and creation of unique
 def index():
     return render_template('loader.html')
 
-@app.route('/plots/<path:path>')
+@app.route('/computed_data/plots/<path:path>')
 def serve_plots(path):
-    response = send_from_directory('plots', path)
+    response = send_from_directory('computed_data/plots', path)
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '-1'
     return response
+
+@app.route('/computed_data/tables/<path:path>')
+def serve_tables(path):
+    response = send_from_directory('computed_data/tables', path)
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '-1'
+    return response
+
 
 # CLEANER
 @app.route('/cleaner')
@@ -175,16 +182,15 @@ def load_dataset():
     print("Reading file into DataFrame")
     database_info = {}
     data = []
-    with open(file.filename, 'r') as f:
-        for i, line in enumerate(f):
-            if 1 <= i <= 6:
-                split_line = line.strip().split('\t')
-                if len(split_line) != 2:
-                    continue
-                key, value = split_line
-                database_info[key] = value
-            elif i > 8:
-                data.append(line.strip().split('\t'))
+    for i, line in enumerate(file.stream):
+        if 1 <= i <= 6:
+            split_line = line.decode().strip().split('\t')
+            if len(split_line) != 2:
+                continue
+            key, value = split_line
+            database_info[key] = value
+        elif i > 8:
+            data.append(line.decode().strip().split('\t'))
 
     df = pd.DataFrame(data[1:], columns=data[0])
     
@@ -193,7 +199,7 @@ def load_dataset():
     dataset_info_name = dataset_info_name.replace(' ', '_')
     print(database_info)
 
-    with open(dataset_info_name, 'w') as f:
+    with open('./user_data/' + dataset_info_name, 'w') as f:
         json.dump(database_info, f)
 
     # Clean the DataFrame
@@ -213,7 +219,7 @@ def load_dataset():
 
     # Save the cleaned dataset as a CSV file
     print("Saving pre-processed dataset")
-    cells_df.to_csv(cleaned_dataset_name, index=False)
+    cells_df.to_csv('./user_data/' + cleaned_dataset_name, index=False)
 
     response = {
         'message': 'Dataset was loaded and pre-processed',
@@ -244,7 +250,7 @@ def get_column_names():
     if not filename:
         return jsonify({'message': 'Missing filename parameter'}), 400
 
-    df = pd.read_csv(filename)
+    df = pd.read_csv('./user_data/' + filename)
     column_names = df.columns.tolist()
     print(type(column_names))  # check the type of column_names
     print(column_names)  # log the column names
@@ -256,17 +262,23 @@ def rename_columns():
 
     filename = data.get('filename')
     mappings = data.get('mappings')
+    deletes = data.get('deletes')
 
     if not filename or not mappings:
         return jsonify({'message': 'Missing filename or mappings parameter'}), 400
 
     try:
-        df = pd.read_csv(filename)
+        df = pd.read_csv('./user_data/' + filename)
+
+        # Drop columns
+        if deletes:
+            df.drop(columns=deletes, inplace=True)
+
         df.rename(columns=mappings, inplace=True)
-        df.to_csv(filename, index=False)
+        df.to_csv('./user_data/' + filename, index=False)
 
         # Save the mappings as a json file
-        with open(f'new_param_{filename}', 'w') as file:
+        with open('./user_data/new_param_' + filename, 'w') as file:
             json.dump(mappings, file)
 
         return jsonify({'message': 'Columns renamed successfully'})
@@ -275,7 +287,6 @@ def rename_columns():
         return jsonify({'message': f'File not found: {filename}'}), 404
     except Exception as e:
         return jsonify({'message': str(e)}), 500
-
 
 
 # LOADER
@@ -322,8 +333,12 @@ def load_cleaned_dataset():
     print("Reading file into DataFrame")
 
     # Delete old plot files
-    for plot_file in glob.glob('plots/plot_*.png'):
+    for plot_file in glob.glob('computed_data/plots/*.png'):
         os.remove(plot_file)    
+
+    # Delete old tables files
+    for table_file in glob.glob('computed_data/tables/*.csv'):
+        os.remove(table_file)    
 
     # Create the plot
     wells = cells_df['well_id'].unique()
@@ -334,9 +349,9 @@ def load_cleaned_dataset():
     plt.xlabel('well_id')
     plt.ylabel('number of cell_lbl')
     plt.title('Number of unique tracked cells per well')
-    plot1_path = f"plot_cells_per_well_{db_info['Plate Name']}_{timestamp}.png"
-    plt.savefig('plots/' + plot1_path)
-    print('plots/' + plot1_path)
+    plot1_path = f"summary_plot_cells_per_well_{db_info['Plate Name']}_{timestamp}.png"
+    plt.savefig('computed_data/plots/' + plot1_path)
+    print('computed_data/plots/' + plot1_path)
 
     response = {
         'message': 'Dataset loaded successfully',
@@ -381,7 +396,7 @@ def get_parameter_names():
     if current_filename is None:
         return jsonify({'message': 'No file loaded'}), 400
     cells_df = pd.read_csv(os.path.join(app.config['UPLOAD_FOLDER'], current_filename))
-    conditions_cols = ['bacteria', 'bact', 'compound', 'treatment', 'pre-treatment'] # list of conditions columns
+    conditions_cols = ['bacteria', 'bact', 'compound', 'treatment', 'pretreatment', 'assay', 'assays', 'assay_number'] # list of conditions columns
     condition_cols = [col for col in conditions_cols if col in cells_df.columns]
     column_names = cells_df.select_dtypes(include=[np.number]).columns.tolist()
     print(condition_cols)
@@ -401,6 +416,14 @@ def plot2():
     percentage = int(data['percentage'])
 
     cells_df = pd.read_csv(os.path.join(app.config['UPLOAD_FOLDER'], current_filename))
+
+    # Delete old plot files
+    for plot_file in glob.glob('computed_data/plots/plot_*.png'):
+        os.remove(plot_file)    
+
+    # Delete old tables files
+    for table_file in glob.glob('computed_data/tables/table_*.csv'):
+        os.remove(table_file)   
 
     # Find the global minimum and maximum 't' values
     t_min = cells_df['t'].min()
@@ -517,8 +540,8 @@ def plot2():
             timestamp = datetime.datetime.now().strftime("%d%m%y-%H%M%S")
             condition_names = '_'.join(str(condition) for condition in condition_values)
             plot2_path = f"plot_single_cells_{condition_names}_{current_filename}_{timestamp}.png"
-            _df.to_csv(f"tables/table_{plot2_path.split('.')[0]}.csv")
-            plt.savefig('plots/' + plot2_path)
+            _df.to_csv(f"computed_data/tables/table_{plot2_path.split('.')[0]}.csv")
+            plt.savefig('computed_data/plots/' + plot2_path)
 
             plot_urls.append(url_for('serve_plots', path=plot2_path))
 
@@ -536,13 +559,25 @@ def plot2():
 @app.route('/download', methods=['GET'])
 def download_results():
     try:
-        # create zip file
-        shutil.make_archive("results", 'zip', "plots/")
+        # create a temporary directory
+        os.makedirs('temp', exist_ok=True)
+
+        # copy files to temporary directory
+        shutil.copytree('computed_data/plots', 'temp/plots')
+        shutil.copytree('computed_data/tables', 'temp/tables')
+
+        # create timestamp
         timestamp = datetime.datetime.now().strftime("%d%m%y-%H%M%S")
-        zipfilename=f"results_{timestamp}"
-        return send_file(zipfilename,
+
+        # create zip file
+        shutil.make_archive(f'results_{timestamp}', 'zip', 'temp')
+
+        # remove temporary directory
+        shutil.rmtree('temp')
+
+        return send_file(f'results_{timestamp}.zip',
                          mimetype='zip',
-                         attachment_filename=zipfilename,
+                         attachment_filename=f'results_{timestamp}.zip',
                          as_attachment=True)
     except FileNotFoundError:
         abort(404)

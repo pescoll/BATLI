@@ -40,10 +40,17 @@ axios.get('/get_parameter_names')
                 }
             }
         };
+
+        // Automatically select the first option in the firstConditionDropdown
+        firstConditionDropdown.selectedIndex = 0;
+        // Trigger the onchange event manually
+        firstConditionDropdown.dispatchEvent(new Event('change'));
     })
     .catch((error) => {
         console.log(error);
     });
+
+
 
 function showPlot2() {
     // Display loading message
@@ -92,39 +99,3 @@ document.getElementById('normalizationDropdown').addEventListener('change', func
     }
 });
     
-
-// function showPlot2() {
-//     // Display loading message
-//     document.getElementById('loadingMessage').style.display = 'block';
-
-//     var conditionsDropdown = document.getElementById('conditionsDropdown');
-//     var parametersDropdown = document.getElementById('parametersDropdown');
-    
-//     var percentageInput = document.getElementById('percentageInput').value;
-
-//     var yMinInput = document.getElementById('yMin').value || null; 
-//     var yMaxInput = document.getElementById('yMax').value || null; 
-
-//     var selectedCondition = conditionsDropdown.options[conditionsDropdown.selectedIndex].value;
-//     var selectedParameter = parametersDropdown.options[parametersDropdown.selectedIndex].value;
-
-//     var normalizationDropdown = document.getElementById('normalizationDropdown');
-//     var selectedNormalization = normalizationDropdown.options[normalizationDropdown.selectedIndex].value;
-
-//     axios.post('/plot2', { condition: selectedCondition, parameter: selectedParameter, percentage: percentageInput, yMin: yMinInput, yMax: yMaxInput, normalization: selectedNormalization })
-//     .then((response) => {
-//         const plotArea2 = document.getElementById('plotArea2');
-//         // Clear out the old images
-//         plotArea2.innerHTML = '';
-//         response.data.plot_urls.forEach(plotUrl => {
-//             const img = document.createElement('img');
-//             img.src = plotUrl;
-//             plotArea2.appendChild(img);
-//         });
-//         plotArea2.style.display = 'block';
-//         document.getElementById('loadingMessage').style.display = 'none';
-//     })
-//     .catch((error) => {
-//         console.log(error);
-//     });
-// }

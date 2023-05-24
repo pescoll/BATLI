@@ -123,11 +123,12 @@ async function getColumnNamesAndPopulateForm() {
             
                 let deleteCheckbox = document.createElement('input');
                 deleteCheckbox.type = 'checkbox';
-                deleteCheckbox.id = 'delete_' + colName;
+                deleteCheckbox.id = 'delete_' + colName.replace(/[^a-zA-Z0-9]/g, "_");
                 deleteCheckbox.className = 'deleteCheckbox';
                 deleteCheckbox.title = 'remove this parameter';
+                console.log(deleteCheckbox);
                 fieldRow.appendChild(deleteCheckbox);
-            
+
                 renameFieldsDiv.appendChild(fieldRow);
             }
             
@@ -147,45 +148,55 @@ async function renameColumns(event) {
     let currentDatasetFilename = localStorage.getItem('currentDatasetFilename');
 
     let renameForm = document.getElementById('renameForm');
-    console.log(renameForm);  // Print the form
-    console.log(renameForm.elements);  // Print the form elements
 
     let columnMappings = {};  // Create an object to store column name mappings
+    let columnDeletes = [];  // Create an array to store column names to delete
 
     let isValid = true;
     let validationMessage = '';
 
     // Iterate over the form elements in pairs (old name, new name)
     for (let i = 0; i < renameForm.elements.length - 1; i += 3) {
-        let oldName = renameForm.elements[i + 1].value;
-        let newName = renameForm.elements[i + 2].value;
-
-        // Check if the delete checkbox is checked
-        if (document.getElementById('delete_' + oldName).checked) {
-            continue; // If checked, skip this column
+        let oldName = renameForm.elements[i].value; // old name is in the hidden input
+        let newName = renameForm.elements[i + 1].value || oldName; // new name is in the next input, if no value given, leave old name
+        let isChecked = renameForm.elements[i + 2].checked; // checkbox is the next element
+        // if checkbox is checked, add old name to columnDeletes
+        if (isChecked) {
+            columnDeletes.push(oldName);
+        } else {
+            if (!/^[a-zA-Z0-9_]+$/.test(newName)) {
+                isValid = false;
+                validationMessage += `New name for column "${oldName}" is invalid. It should only contain alphanumeric characters and underscores.\n`;
+                continue;
+            }
+            columnMappings[oldName] = newName;
         }
-
-        if (!newName) {
-            newName = oldName; // If no new name provided, use the old name
-        }
-
-        // Check the length of the new name
-        if (newName.length > 20) {
-            isValid = false;
-            validationMessage += `New name for column "${oldName}" is too long. It should be no more than 20 characters.\n`;
-            continue;
-        }
-
-        // Check if the new name contains only alphanumeric characters and underscores
-        if (!/^[a-zA-Z0-9_]+$/.test(newName)) {
-            isValid = false;
-            validationMessage += `New name for column "${oldName}" is invalid. It should only contain alphanumeric characters and underscores.\n`;
-            continue;
-        }
-
-        // Add the column name mapping to the object
-        columnMappings[oldName] = newName;
     }
+    
+    
+    // for (let i = 0; i < renameForm.elements.length - 1; i += 3) {
+    //     let oldName = renameForm.elements[i].value; // old name is in the hidden input
+    //     let newName = renameForm.elements[i + 1].value || oldName; // new name is in the next input, if no value given, leave old name
+    //     let isChecked = renameForm.elements[i + 2].checked; // checkbox is the next element
+
+    //     // if checkbox is not checked, add old and new name pair to columnMappings
+    //     if (!isChecked) {
+    //         // // check for valid newName
+    //         // if (newName.length > 20) {
+    //         //     isValid = false;
+    //         //     validationMessage += `New name for column "${oldName}" is too long. It should be no more than 20 characters.\n`;
+    //         //     continue;
+    //         // }
+
+    //         if (!/^[a-zA-Z0-9_]+$/.test(newName)) {
+    //             isValid = false;
+    //             validationMessage += `New name for column "${oldName}" is invalid. It should only contain alphanumeric characters and underscores.\n`;
+    //             continue;
+    //         }
+
+    //         columnMappings[oldName] = newName;
+    //     }
+    // }
 
     if (!isValid) {
         alert(validationMessage);
@@ -195,7 +206,8 @@ async function renameColumns(event) {
     // Convert the column name mappings to a JSON string
     let jsonMappings = JSON.stringify({
         filename: currentDatasetFilename,
-        mappings: columnMappings
+        mappings: columnMappings,
+        deletes: columnDeletes
     });
 
     console.log(jsonMappings);  // Print the JSON string
@@ -222,4 +234,5 @@ async function renameColumns(event) {
         console.error('Error:', error);
     }
 }
+
 

@@ -72,6 +72,15 @@ h2 {
     height: auto;
 }
 
+#plotArea3 {
+    max-width: 66vw;
+}
+
+#plotArea3 img {
+    max-width: 100%;
+    height: auto;
+}
+
 .button-container {
     display: flex;
     justify-content: center;

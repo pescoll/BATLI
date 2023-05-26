@@ -64,7 +64,7 @@ function showPlot3() {
     var rangeEndInput = document.getElementById('rangeEnd');
     var rangeStart = rangeStartInput.value;
     var rangeEnd = rangeEndInput.value;
-    var thresholdInput = document.getElementById('thresholdInput').value;
+    var thresholdInput = parseFloat(document.getElementById('thresholdInput').value);
 
     var selectedCondition = firstConditionDropdown.options[firstConditionDropdown.selectedIndex].value;
     var selectedSecondCondition = secondConditionDropdown.options[secondConditionDropdown.selectedIndex].value;

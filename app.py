@@ -541,7 +541,7 @@ def plot2():
 
             for k, v in _df.groupby('cell_lbl').groups.items():
                 single_cell_df = _df.loc[v]  # Subset of data that has only one cell
-                ax.plot(single_cell_df['t'], single_cell_df[selected_parameter], alpha=0.2)
+                ax.plot(single_cell_df['t'], single_cell_df[selected_parameter], alpha=0.08)
 
             
             timestamp = datetime.datetime.now().strftime("%d%m%y-%H%M%S")
@@ -677,11 +677,11 @@ def plot3():
     # go over each cell:
     for lbl, gr in filtered_cells_df.groupby(['cell_lbl']):
         # times = gr['t'].values
-        areas = gr[selected_parameter].values 
+        growth = gr[selected_parameter].values 
         # calculate Area change:
         # array[-N:] -> returns last N elements
         # array[0:N] -> returns first N elements
-        dA = areas[-Np:].mean() - areas[0:Np].mean()
+        dA = float(growth[-Np:].mean() - growth[0:Np].mean())
         if dA >= threshold:
             class_1.append( lbl )
         else:
@@ -711,14 +711,18 @@ def plot3():
                 num_class_1  = len(_df[_df['growth'] == 1]['cell_lbl'].unique())
                 num_class_0 = len(_df[_df['growth'] == 0]['cell_lbl'].unique())          
                 num_class_total = num_class_1+num_class_0
-                plot_title = f"{condition_values[0]} - {condition_values[1]} (n = {num_cells} cells, class_1 = {num_class_1} of {num_class_total} cells)"  # Set the plot title with both condition values
+                percentage_class_1 = (num_class_1*100)/num_class_total
+                percentage_class_1 = format(percentage_class_1, '.2f')
+                plot_title = f"{condition_values[0]} - {condition_values[1]} (n = {num_cells} cells, class_1 = {num_class_1} of {num_class_total} cells - {percentage_class_1}%)"  # Set the plot title with both condition values
             elif len(condition_values) == 1:
                 _df = filtered_cells_df[filtered_cells_df[selected_condition] == condition_values[0]]
                 num_cells = len(_df['cell_lbl'].unique())
                 num_class_1  = len(_df[_df['growth'] == 1]['cell_lbl'].unique())
                 num_class_0 = len(_df[_df['growth'] == 0]['cell_lbl'].unique())                   
                 num_class_total = num_class_1+num_class_0
-                plot_title = f"{condition_values[0]} (n = {num_cells} cells, class_1 = {num_class_1} of {num_class_total} cells)"  # Set the plot title with both condition values
+                percentage_class_1 = (num_class_1*100)/num_class_total
+                percentage_class_1 = format(percentage_class_1, '.2f')
+                plot_title = f"{condition_values[0]} (n = {num_cells} cells, class_1 = {num_class_1} of {num_class_total} cells - {percentage_class_1}%)"  # Set the plot title with both condition values
             else:
                 continue  # if there are no conditions, continue to the next iteration
 

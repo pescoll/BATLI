@@ -101,7 +101,7 @@ def clean_dataframe(df, database_info):  # Basic cleaning and creation of unique
     cells_df = cells_df.fillna('')
 
     # Replace non-alphanumeric characters (excluding periods and underscores) in string values with underscores
-    cells_df.replace({r'[^a-zA-Z0-9_.]': '_'}, regex=True, inplace=True)
+    cells_df.replace({r'[^a-zA-Z0-9_.-]': '_'}, regex=True, inplace=True)
 
     # Organize the table
     cells_df = cells_df.sort_values(['well_id', 't'])
@@ -671,6 +671,8 @@ def plot3():
     class_1 = []      
     class_0 = []
 
+    filtered_cells_df.sort_values(by=['cell_lbl', 't'], inplace=True)  # Sort by 'cell_lbl' and 't'
+
     # number of points to average (N), adjust if necessary, will be used to determine growth
     Np = 2
 
@@ -684,6 +686,7 @@ def plot3():
         dA = float(growth[-Np:].mean() - growth[0:Np].mean())
         if dA >= threshold:
             class_1.append( lbl )
+            print(lbl, growth[-Np:].mean(), growth[0:Np].mean(), dA)
         else:
             class_0.append( lbl )
 
@@ -693,7 +696,7 @@ def plot3():
     # add column growth:
     filtered_cells_df['growth'] = 0 # 0 by default
     filtered_cells_df.loc[inds, 'growth'] = 1  # set to 1 those that are from rb_cells_lbl list
-
+    filtered_cells_df.to_csv(f"computed_data/backward/table_single_cells_filtered.csv")
     print( 'Class_1 cells/total cells: %d / %d'%(len(class_1), len(class_1)+len(class_0)) )   
 
     try:
@@ -797,6 +800,209 @@ def plot3():
             plt.savefig('computed_data/backward/' + plot3_path)
 
             plot_urls_backward.append(url_for('serve_backward', path=plot3_path))
+            print(plot_urls_backward)
+
+    except Exception as e:
+        app.logger.error(f'Error generating plot: {e}')
+        return jsonify({'message': f'Error generating plot: {e}'}), 500
+
+    response = {
+        'message': 'Plots created successfully',
+        'plot_urls_backward': plot_urls_backward  # Return multiple plot URLs
+    }
+
+    return jsonify(response), 200
+
+@app.route('/get_parameter_names_backward_2', methods=['GET'])
+def get_parameter_names_backward_2():
+    if current_filename is None:
+        return jsonify({'message': 'No file loaded'}), 400
+        # Read the dataframe
+    filename = "table_single_cells_filtered.csv"
+    directory = "computed_data/backward"
+    path = os.path.join(directory, filename)
+    cells_df = pd.read_csv(path)
+    conditions_cols2 = ['bacteria', 'bact', 'compound', 'treatment', 'pretreatment', 'assay', 'assays', 'assay_number'] # list of conditions columns
+    condition_cols2 = [col for col in conditions_cols2 if col in cells_df.columns]
+    column_names2 = cells_df.select_dtypes(include=[np.number]).columns.tolist()
+    print(condition_cols2)
+    print(column_names2)
+    return jsonify({'condition_cols': condition_cols2, 'column_names': column_names2}), 200
+
+@app.route('/plot4', methods=['POST'])
+def plot4():
+    global current_filename
+    if current_filename is None:
+        return jsonify({'message': 'No file loaded'}), 400
+
+    data = request.get_json()
+    selected_condition = data['condition']
+    selected_second_condition = data.get('secondCondition')  # This will be None if not provided
+    selected_parameter = data['parameter']
+    percentage = int(data['percentage'])
+
+    # Read the dataframe
+    filename = "table_single_cells_filtered.csv"
+    directory = "computed_data/backward"
+    path = os.path.join(directory, filename)
+
+    cells_df = pd.read_csv(path)
+
+    # Find the global minimum and maximum 't' values
+    t_min = cells_df['t'].min()
+    t_max = cells_df['t'].max()
+
+    yMin = data.get('yMin')
+    yMax = data.get('yMax')
+
+    if yMin is not None:
+        yMin = float(yMin)
+    if yMax is not None:
+        yMax = float(yMax)
+
+    # Find the total number of unique 't' values in the dataframe
+    total_timepoints = len(cells_df['t'].unique())
+    required_timepoints = total_timepoints * percentage // 100
+
+    # Define a function to test if a cell_lbl's track length is above the required threshold
+    def test_length(x):
+        return len(x) >= required_timepoints
+
+    print("Total timepoints: ", total_timepoints)
+    print("Required timepoints: ", required_timepoints)
+
+    # Filter the dataframe to only include cell_lbl's that pass the test_length function
+    filtered_cells_df = cells_df[cells_df.groupby('cell_lbl')['t'].transform(test_length)].copy()
+    
+    print("Number of unique cell_lbl in original df: ", len(cells_df['cell_lbl'].unique()))
+    print("Number of unique cell_lbl in filtered df: ", len(filtered_cells_df['cell_lbl'].unique()))
+    
+    sub_df = filtered_cells_df[selected_condition].unique()
+
+    float('inf')  # Returns: inf
+    float('-inf')  # Returns: -inf
+
+    plot_urls_backward = []
+
+    try:
+        if selected_second_condition and selected_second_condition != 'none':
+            condition_combinations = filtered_cells_df[[selected_condition, selected_second_condition]].drop_duplicates().values.tolist()
+        else:
+            condition_combinations = [(value,) for value in filtered_cells_df[selected_condition].unique()]
+
+        print(f"Condition combinations: {condition_combinations}")  # print to debug
+
+        for condition_values in condition_combinations:
+            if len(condition_values) == 2:
+                _df = filtered_cells_df[(filtered_cells_df[selected_condition] == condition_values[0]) & (filtered_cells_df[selected_second_condition] == condition_values[1])]
+                num_cells = len(_df['cell_lbl'].unique())
+                num_class_1  = len(_df[_df['growth'] == 1]['cell_lbl'].unique())
+                num_class_0 = len(_df[_df['growth'] == 0]['cell_lbl'].unique())          
+                num_class_total = num_class_1+num_class_0
+                percentage_class_1 = (num_class_1*100)/num_class_total
+                percentage_class_1 = format(percentage_class_1, '.2f')
+                plot_title = f"{condition_values[0]} - {condition_values[1]} (n = {num_cells} cells, class_1 = {num_class_1} of {num_class_total} cells - {percentage_class_1}%)"  # Set the plot title with both condition values
+            elif len(condition_values) == 1:
+                _df = filtered_cells_df[filtered_cells_df[selected_condition] == condition_values[0]]
+                num_cells = len(_df['cell_lbl'].unique())
+                num_class_1  = len(_df[_df['growth'] == 1]['cell_lbl'].unique())
+                num_class_0 = len(_df[_df['growth'] == 0]['cell_lbl'].unique())                   
+                num_class_total = num_class_1+num_class_0
+                percentage_class_1 = (num_class_1*100)/num_class_total
+                percentage_class_1 = format(percentage_class_1, '.2f')
+                plot_title = f"{condition_values[0]} (n = {num_cells} cells, class_1 = {num_class_1} of {num_class_total} cells - {percentage_class_1}%)"  # Set the plot title with both condition values
+            else:
+                continue  # if there are no conditions, continue to the next iteration
+
+            _df = _df.copy()
+            _df['t'] = _df['t'].astype(int)
+            _df.sort_values(by=['cell_lbl', 't'], inplace=True)  # Sort by 'cell_lbl' and 't'
+
+            fig, ax = plt.subplots(figsize=(12, 4))  # New figure for each condition
+            ax.set_title(plot_title)
+            ax.set_ylabel(selected_parameter)
+            ax.set_xlabel('time')
+            if yMin is not None and yMax is not None:
+                ax.set_ylim(yMin, yMax)
+
+
+            normalization = data['normalization']
+
+            if normalization == 't0':
+                # Normalize the data to t=0
+                for cell_lbl, group in _df.groupby('cell_lbl'):
+                    t0_value = group.loc[group['t'].idxmin(), selected_parameter]
+                    group[selected_parameter] /= t0_value
+                    _df.loc[group.index, selected_parameter] = group[selected_parameter]
+                    # if t0_value == 0:
+                    #     t0_value = 1e-10  # Substitute a small positive number for t0_value
+                    # group[selected_parameter] /= t0_value
+                    # _df.loc[group.index, selected_parameter] = group[selected_parameter]
+            
+            # Normalize custom
+            elif normalization == 'custom':
+                range_start = int(data.get('range_start', 0))
+                range_end = int(data.get('range_end', 4))
+
+                for cell_lbl, group in _df.groupby('cell_lbl'):
+                    average_value = group[(group['t'] >= range_start) & (group['t'] <= range_end)][selected_parameter].mean()
+                    if average_value != 0:  # Avoid division by zero
+                        group[selected_parameter] /= average_value
+                        _df.loc[group.index, selected_parameter] = group[selected_parameter]
+
+                # Delta normalization
+                # elif normalization == 'delta':
+                #     for cell_lbl, group in _df.groupby('cell_lbl'):
+                #         group[selected_parameter] = group[selected_parameter] / group[selected_parameter].shift(1)
+                #         _df.loc[group.index, selected_parameter] = group[selected_parameter]
+
+            elif normalization == 'delta':
+                for cell_lbl, group in _df.groupby('cell_lbl'):
+                    group[selected_parameter] = group[selected_parameter].diff()
+                    _df.loc[group.index, selected_parameter] = group[selected_parameter]
+
+
+            # Set the x-axis limit for each plot and colours
+            ax.set_xlim(t_min, t_max)
+            cols = ['blue', 'red']         
+
+            for lbl, gr in _df.groupby('cell_lbl'):
+                if gr['growth'].unique() == 1:
+                    # settings for class_1 cells plot
+                    col = np.array( (255, 107, 107) )/255 # color red
+                    al = 0.05
+                    lw = 2
+                else:
+                    # settings for class_0 cells plot
+                    col = np.array( (72, 219, 251) )/255 # color blue
+                    al = 0.02
+                    lw = 1
+                ax.plot( gr['t'].values, gr[selected_parameter].values, '-', alpha=al, color = col, lw=lw )        
+        
+            # population average
+            for lbl, gr in _df.groupby('cell_lbl'):
+                if np.any(gr['growth'].unique() == 1):
+                    data = gr[gr['growth'] == 1]  # this creates a DataFrame only with rows where 'growth' is 1
+    
+                    sns.lineplot( data=data, x='t', y=selected_parameter,
+                             hue='growth', palette=['red'], 
+                             ax=ax, linewidth=0.5, estimator=np.median )
+            
+            for lbl, gr in _df.groupby('cell_lbl'):
+                if np.any(gr['growth'].unique() == 0):
+                    data = gr[gr['growth'] == 0]  # this creates a DataFrame only with rows where 'growth' is 0
+    
+                    sns.lineplot( data=data, x='t', y=selected_parameter,
+                             hue='growth', palette=['blue'], 
+                             ax=ax, linewidth=0.5, estimator=np.median )            
+            
+            timestamp = datetime.datetime.now().strftime("%d%m%y-%H%M%S")
+            condition_names = '_'.join(str(condition) for condition in condition_values)
+            plot4_path = f"plot_backward_{selected_parameter}_{condition_names}_{current_filename}_{timestamp}.png"
+            _df.to_csv(f"computed_data/backward/table_{plot4_path.split('.')[0]}.csv")
+            plt.savefig('computed_data/backward/' + plot4_path)
+
+            plot_urls_backward.append(url_for('serve_backward', path=plot4_path))
             print(plot_urls_backward)
 
     except Exception as e:

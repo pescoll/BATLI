@@ -926,7 +926,9 @@ def plot4():
                 ax.set_ylim(yMin, yMax)
 
 
-            normalization = data['normalization']
+            # normalization = data['normalization']
+            normalization = data.get('normalization', 'none')
+
 
             if normalization == 't0':
                 # Normalize the data to t=0
@@ -964,37 +966,39 @@ def plot4():
 
             # Set the x-axis limit for each plot and colours
             ax.set_xlim(t_min, t_max)
-            cols = ['blue', 'red']         
+
+            # Prepare color palette
+            growth_color_map = {0: 'blue', 1: 'red'}      
 
             for lbl, gr in _df.groupby('cell_lbl'):
-                if gr['growth'].unique() == 1:
-                    # settings for class_1 cells plot
-                    col = np.array( (255, 107, 107) )/255 # color red
-                    al = 0.05
-                    lw = 2
-                else:
+                if gr['growth'].unique() == 0:
                     # settings for class_0 cells plot
                     col = np.array( (72, 219, 251) )/255 # color blue
-                    al = 0.02
-                    lw = 1
-                ax.plot( gr['t'].values, gr[selected_parameter].values, '-', alpha=al, color = col, lw=lw )        
+                else:
+                    # settings for class_1 cells plot
+                    col = np.array( (238, 32, 77) )/255 # color red
+                ax.plot( gr['t'].values, gr[selected_parameter].values, '-', color = col, alpha=0.1, lw=1 )
+  
         
             # population average
-            for lbl, gr in _df.groupby('cell_lbl'):
-                if np.any(gr['growth'].unique() == 1):
-                    data = gr[gr['growth'] == 1]  # this creates a DataFrame only with rows where 'growth' is 1
-    
-                    sns.lineplot( data=data, x='t', y=selected_parameter,
-                             hue='growth', palette=['red'], 
-                             ax=ax, linewidth=0.5, estimator=np.median )
+            sns.lineplot( data=_df, x='t', y=selected_parameter,
+                     hue='growth', palette=growth_color_map, 
+                     ax=ax, linewidth=2, estimator=np.median )
+
+            # Display both colors in the legend
+            handles, labels = ax.get_legend_handles_labels()
+            # handles[0] is the legend title, handles[1] is for 'growth=0', and handles[2] is for 'growth=1'.
+            ax.legend(handles=handles, labels=labels)
+
+            # To add the general name above the legend
+            ax.legend(title='class')
+
+            # Set legend location
+            ax.legend(loc='upper right')
             
-            for lbl, gr in _df.groupby('cell_lbl'):
-                if np.any(gr['growth'].unique() == 0):
-                    data = gr[gr['growth'] == 0]  # this creates a DataFrame only with rows where 'growth' is 0
-    
-                    sns.lineplot( data=data, x='t', y=selected_parameter,
-                             hue='growth', palette=['blue'], 
-                             ax=ax, linewidth=0.5, estimator=np.median )            
+            # # To remove legend title
+            # handles, labels = ax.get_legend_handles_labels()
+            # ax.legend(handles=handles[1:], labels=labels[1:])       
             
             timestamp = datetime.datetime.now().strftime("%d%m%y-%H%M%S")
             condition_names = '_'.join(str(condition) for condition in condition_values)
@@ -1020,10 +1024,10 @@ def plot4():
 def download_results_backward():
     try:
         # create a temporary directory
-        os.makedirs('temp_backward', exist_ok=True)
+        os.makedirs('temp', exist_ok=True)
 
         # copy files to temporary directory
-        shutil.copytree('computed_data/backward', 'temp_backward/backward')
+        shutil.copytree('computed_data/backward', 'temp/backward')
 
         # create timestamp
         timestamp = datetime.datetime.now().strftime("%d%m%y-%H%M%S")

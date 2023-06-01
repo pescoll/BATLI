@@ -1,0 +1,1 @@
+{"row": "row", "col": "col", "plane": "plane", "t": "t", "field": "field", "n": "n", "bacteria": "bacteria", "assay": "assay", "treatment": "treatment", "bacteria_area_[um\u00b2]-_sum_per_cell_": "legio_area", "intensity_cell_alexa_647_mean": "annexin", "far_red_sdmean": "cell_ROX", "red_sdmean": "TMRM", "well_id": "well_id", "cell_lbl": "cell_lbl"}

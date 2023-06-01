@@ -82,6 +82,8 @@ function showPlot3() {
         });
         plotArea3.style.display = 'block';
         document.getElementById('loadingMessage').style.display = 'none';
+        // Now call loadClasses after updating plotArea3
+        loadClasses();
     })
     .catch((error) => {
         console.log(error);
@@ -98,7 +100,7 @@ document.getElementById('normalizationDropdown').addEventListener('change', func
     }
 });
 
-// These variables are used in both the onchange event and showPlot3
+// These variables are used in both the onchange event and showPlot4
 var firstConditionDropdown2 = document.getElementById('conditionsDropdown2');
 var secondConditionDropdown2 = document.getElementById('secondConditionDropdown2');
 var parametersDropdown2 = document.getElementById('parametersDropdown2');
@@ -107,7 +109,12 @@ var normalizationDropdown2 = document.getElementById('normalizationDropdown2');
 function loadClasses() {
         axios.get('/get_parameter_names_backward_2')
             .then((response) => {
-                response.data.condition_cols2.forEach((col) => {
+                // Clear the dropdowns before populating them
+                firstConditionDropdown2.innerHTML = '';
+                secondConditionDropdown2.innerHTML = '';
+                parametersDropdown2.innerHTML = '';
+
+                response.data.condition_cols.forEach((col) => {
                     var option = document.createElement('option');
                     option.text = col;
                     firstConditionDropdown2.add(option);
@@ -171,7 +178,17 @@ function showPlot4() {
     
     axios.post('/plot4', { condition: selectedCondition2, secondCondition: selectedSecondCondition2, parameter: selectedParameter2, percentage: percentageInput2, yMin: yMinInput2, yMax: yMaxInput2, normalization: selectedNormalization2, range_start: rangeStart2, range_end: rangeEnd2 })
     .then((response) => {
-        const plotArea4 = document.getElementById('plotArea4');
+        // Wait for a brief moment before scrolling
+        setTimeout(() => {
+            const plotArea4 = document.getElementById('plotArea4');
+            plotArea4.scrollIntoView({ behavior: 'smooth' });
+        }, 100);  // Wait for 100 milliseconds
+    
+    
+        // const plotArea4 = document.getElementById('plotArea4');
+        // // After the plot is displayed, scroll to make it visible
+        // plotArea4.scrollIntoView({ behavior: 'smooth' });
+    
         // // Clear out the old images
         plotArea4.innerHTML = '';
         response.data.plot_urls_backward.forEach(plotUrl4 => {
@@ -190,7 +207,7 @@ function showPlot4() {
 // This function shows or hides the custom range inputs depending on the selected normalization method.
 document.getElementById('normalizationDropdown2').addEventListener('change', function() {
     var customRange = document.getElementById('customRange2');
-    if (this.value === 'custom2') {
+    if (this.value === 'custom') {
         customRange.style.display = 'block';
     } else {
         customRange.style.display = 'none';

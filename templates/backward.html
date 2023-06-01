@@ -32,6 +32,7 @@
         });
     </script>
     <div id="loadingMessage" class="blinking" style="display: none;">Working with your graphs...</div>
+    <h2>Classification</h2>
     <select id="conditionsDropdown">
     </select>
     <select id="secondConditionDropdown">
@@ -68,8 +69,9 @@
         <img id="plotImage3" src="">
     </div>
     <br>
+    <h2>Backward Analysis</h2>    
     <div id="loadingMessage2" class="blinking" style="display: none;">Working with your graphs...</div>
-    <button id="loadClasses" onclick="loadClasses()">Load Dataset Sorted by Classes</button>
+    <!-- <button id="loadClasses" onclick="loadClasses()">Load Dataset Sorted by Classes</button> -->
     <select id="conditionsDropdown2">
     </select>
     <select id="secondConditionDropdown2">
@@ -78,7 +80,8 @@
     </select>    
     <select id="parametersDropdown2">
     </select>    
-    <button id="loadClasses" onclick="loadClasses()">Load Dataset Sorted by Classes</button>
+    </div>
+    <button id="showPlot4Button" onclick="showPlot4()">Show Backward Analyis Plots</button>
     <br>
     <label for="percentageInput2" style="font-size: 0.8em;" width="120px">Min Tracks Length (%) :</label>
     <input type="number" id="percentageInput2" min="1" max="100" value="50" style="font-size: 0.6em;">
@@ -100,12 +103,10 @@
         <label for="rangeEnd" style="font-size: 0.8em;">Range End:</label>
         <input type="number" id="rangeEnd2" name="rangeEnd" min="0" value="4" style="font-size: 0.6em;">
     </div>
-    <button id="showPlot4Button" onclick="showPlot4()">Show Backward Analyis Plots</button>
     <div id="plotArea4" style="display: none;"> <!-- This is the new plot area for plot 4 -->
         <img id="plotImage4" src="">
     </div>
-
-    <a href="/download">Download results</a>
+    <a href="/download_backward" style="font-size: 0.8em;">Download results</a>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="static/js/backward.js"></script>
 </body>

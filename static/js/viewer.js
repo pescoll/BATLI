@@ -3,6 +3,7 @@ var currentDatasetFilename = localStorage.getItem('currentDatasetFilename');
 // These variables are used in both the onchange event and showPlot2
 var firstConditionDropdown = document.getElementById('conditionsDropdown');
 var secondConditionDropdown = document.getElementById('secondConditionDropdown');
+var thirdConditionDropdown = document.getElementById('thirdConditionDropdown');
 var parametersDropdown = document.getElementById('parametersDropdown');
 var normalizationDropdown = document.getElementById('normalizationDropdown');
 
@@ -21,14 +22,16 @@ axios.get('/get_parameter_names')
 
         // Attach onchange event after firstConditionDropdown is populated
         firstConditionDropdown.onchange = function() {
-            // Clear the secondConditionDropdown options
+            // Clear the secondConditionDropdown and thirdConditionDropdown options
             secondConditionDropdown.innerHTML = '';
+            thirdConditionDropdown.innerHTML = '';
             
             // Add the 'none' option
             var noneOption = document.createElement('option');
             noneOption.value = 'none';
             noneOption.text = 'None';
             secondConditionDropdown.add(noneOption);
+            thirdConditionDropdown.add(noneOption.cloneNode(true));  // create a copy for the third dropdown
         
             // Populate secondConditionDropdown based on the selected option in the firstConditionDropdown
             for (var i = 0; i < firstConditionDropdown.length; i++) {
@@ -39,6 +42,20 @@ axios.get('/get_parameter_names')
                     secondConditionDropdown.add(option);
                 }
             }
+            // Populate thirdConditionDropdown based on the options in the secondConditionDropdown
+            // Trigger this population after a small delay to make sure the second dropdown has been populated
+            setTimeout(function() {
+                for (var i = 0; i < secondConditionDropdown.length; i++) {
+                    if (secondConditionDropdown[i].value !== 'none') {
+                        var option = document.createElement('option');
+                        option.value = secondConditionDropdown[i].value;
+                        option.text = secondConditionDropdown[i].text;
+                        thirdConditionDropdown.add(option);
+                    }
+                }
+            }, 100);
+            // Force the 'none' option to be selected in the secondConditionDropdown
+            secondConditionDropdown.value = 'none';
         };
 
         // Automatically select the first option in the firstConditionDropdown
@@ -67,11 +84,12 @@ function showPlot2() {
 
     var selectedCondition = firstConditionDropdown.options[firstConditionDropdown.selectedIndex].value;
     var selectedSecondCondition = secondConditionDropdown.options[secondConditionDropdown.selectedIndex].value;
+    var selectedThirdCondition = thirdConditionDropdown.options[thirdConditionDropdown.selectedIndex].value;
     var selectedParameter = parametersDropdown.options[parametersDropdown.selectedIndex].value;
     var selectedNormalization = normalizationDropdown.options[normalizationDropdown.selectedIndex].value;
 
     
-    axios.post('/plot2', { condition: selectedCondition, secondCondition: selectedSecondCondition, parameter: selectedParameter, percentage: percentageInput, yMin: yMinInput, yMax: yMaxInput, normalization: selectedNormalization, range_start: rangeStart, range_end: rangeEnd })
+    axios.post('/plot2', { condition: selectedCondition, secondCondition: selectedSecondCondition, thirdCondition: selectedThirdCondition, parameter: selectedParameter, percentage: percentageInput, yMin: yMinInput, yMax: yMaxInput, normalization: selectedNormalization, range_start: rangeStart, range_end: rangeEnd })
     .then((response) => {
         const plotArea2 = document.getElementById('plotArea2');
         // Clear out the old images

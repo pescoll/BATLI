@@ -419,6 +419,7 @@ def plot2():
     data = request.get_json()
     selected_condition = data['condition']
     selected_second_condition = data.get('secondCondition')  # This will be None if not provided
+    selected_third_condition = data.get('thirdCondition')  # This will be None if not provided
     selected_parameter = data['parameter']
     percentage = int(data['percentage'])
 
@@ -469,7 +470,9 @@ def plot2():
     plot_urls = []
 
     try:
-        if selected_second_condition and selected_second_condition != 'none':
+        if selected_second_condition and selected_second_condition != 'none' and selected_third_condition and selected_third_condition != 'none':
+            condition_combinations = filtered_cells_df[[selected_condition, selected_second_condition, selected_third_condition]].drop_duplicates().values.tolist()
+        elif selected_second_condition and selected_second_condition != 'none':
             condition_combinations = filtered_cells_df[[selected_condition, selected_second_condition]].drop_duplicates().values.tolist()
         else:
             condition_combinations = [(value,) for value in filtered_cells_df[selected_condition].unique()]
@@ -477,8 +480,15 @@ def plot2():
         print(f"Condition combinations: {condition_combinations}")  # print to debug
 
         for condition_values in condition_combinations:
-            if len(condition_values) == 2:
-                _df = filtered_cells_df[(filtered_cells_df[selected_condition] == condition_values[0]) & (filtered_cells_df[selected_second_condition] == condition_values[1])]
+            if len(condition_values) == 3:
+                _df = filtered_cells_df[(filtered_cells_df[selected_condition] == condition_values[0]) & 
+                                        (filtered_cells_df[selected_second_condition] == condition_values[1]) & 
+                                        (filtered_cells_df[selected_third_condition] == condition_values[2])]
+                num_cells = len(_df['cell_lbl'].unique())
+                plot_title = f"{condition_values[0]} - {condition_values[1]} - {condition_values[2]} (n = {num_cells} cells)"  # Set the plot title with all condition values
+            elif len(condition_values) == 2:
+                _df = filtered_cells_df[(filtered_cells_df[selected_condition] == condition_values[0]) & 
+                                        (filtered_cells_df[selected_second_condition] == condition_values[1])]
                 num_cells = len(_df['cell_lbl'].unique())
                 plot_title = f"{condition_values[0]} - {condition_values[1]} (n = {num_cells} cells)"  # Set the plot title with both condition values
             elif len(condition_values) == 1:
@@ -487,6 +497,27 @@ def plot2():
                 plot_title = f"{condition_values[0]} (n = {num_cells} cells)"  # Set the plot title with only one condition value
             else:
                 continue  # if there are no conditions, continue to the next iteration
+
+
+    # try:
+    #     if selected_second_condition and selected_second_condition != 'none':
+    #         condition_combinations = filtered_cells_df[[selected_condition, selected_second_condition]].drop_duplicates().values.tolist()
+    #     else:
+    #         condition_combinations = [(value,) for value in filtered_cells_df[selected_condition].unique()]
+
+    #     print(f"Condition combinations: {condition_combinations}")  # print to debug
+
+    #     for condition_values in condition_combinations:
+    #         if len(condition_values) == 2:
+    #             _df = filtered_cells_df[(filtered_cells_df[selected_condition] == condition_values[0]) & (filtered_cells_df[selected_second_condition] == condition_values[1])]
+    #             num_cells = len(_df['cell_lbl'].unique())
+    #             plot_title = f"{condition_values[0]} - {condition_values[1]} (n = {num_cells} cells)"  # Set the plot title with both condition values
+    #         elif len(condition_values) == 1:
+    #             _df = filtered_cells_df[filtered_cells_df[selected_condition] == condition_values[0]]
+    #             num_cells = len(_df['cell_lbl'].unique())
+    #             plot_title = f"{condition_values[0]} (n = {num_cells} cells)"  # Set the plot title with only one condition value
+    #         else:
+    #             continue  # if there are no conditions, continue to the next iteration
 
             _df = _df.copy()
             _df['t'] = _df['t'].astype(int)

@@ -4,6 +4,8 @@ var currentDatasetFilename = localStorage.getItem('currentDatasetFilename');
 var firstConditionDropdown = document.getElementById('conditionsDropdown');
 var secondConditionDropdown = document.getElementById('secondConditionDropdown');
 var thirdConditionDropdown = document.getElementById('thirdConditionDropdown');
+var fixedThirdCondition = document.getElementById('fixedThirdCondition').checked;
+var fixedThirdConditionValueDropdown = document.getElementById('fixedThirdConditionValueDropdown');
 var parametersDropdown = document.getElementById('parametersDropdown');
 var normalizationDropdown = document.getElementById('normalizationDropdown');
 
@@ -62,6 +64,35 @@ axios.get('/get_parameter_names')
         firstConditionDropdown.selectedIndex = 0;
         // Trigger the onchange event manually
         firstConditionDropdown.dispatchEvent(new Event('change'));
+
+
+        document.getElementById('fixedThirdCondition').onchange = function() {
+            if (this.checked) {
+                // Show and populate the new dropdown
+                fixedThirdConditionValueDropdown.style.display = 'block';
+                fixedThirdConditionValueDropdown.innerHTML = '';  // clear the options
+        
+                var selectedThirdCondition = thirdConditionDropdown.options[thirdConditionDropdown.selectedIndex].value;
+                axios.post('/get_third_condition_values', { condition: selectedThirdCondition })
+                    .then((response) => {
+                        response.data.unique_values.forEach((val) => {
+                            var option = document.createElement('option');
+                            option.value = val;
+                            option.text = val;
+                            fixedThirdConditionValueDropdown.add(option);
+                        });
+                    })
+                    .catch((error) => {
+                        console.log(error);
+                    });
+        
+            } else {
+                // Hide the new dropdown
+                fixedThirdConditionValueDropdown.style.display = 'none';
+            }
+        };
+        
+
     })
     .catch((error) => {
         console.log(error);
@@ -85,11 +116,17 @@ function showPlot2() {
     var selectedCondition = firstConditionDropdown.options[firstConditionDropdown.selectedIndex].value;
     var selectedSecondCondition = secondConditionDropdown.options[secondConditionDropdown.selectedIndex].value;
     var selectedThirdCondition = thirdConditionDropdown.options[thirdConditionDropdown.selectedIndex].value;
+    if (selectedSecondCondition === 'none') selectedSecondCondition = null;
+    if (selectedThirdCondition === 'none') selectedThirdCondition = null;    
+    console.log(fixedThirdCondition);
+    var fixedThirdCondition = document.getElementById('fixedThirdCondition').checked;
+    console.log('FixedThirdCondition:', fixedThirdCondition);
+    var fixedThirdConditionValue = fixedThirdCondition ? fixedThirdConditionValueDropdown.options[fixedThirdConditionValueDropdown.selectedIndex].value : null;
     var selectedParameter = parametersDropdown.options[parametersDropdown.selectedIndex].value;
     var selectedNormalization = normalizationDropdown.options[normalizationDropdown.selectedIndex].value;
 
     
-    axios.post('/plot2', { condition: selectedCondition, secondCondition: selectedSecondCondition, thirdCondition: selectedThirdCondition, parameter: selectedParameter, percentage: percentageInput, yMin: yMinInput, yMax: yMaxInput, normalization: selectedNormalization, range_start: rangeStart, range_end: rangeEnd })
+    axios.post('/plot2', { condition: selectedCondition, secondCondition: selectedSecondCondition, thirdCondition: selectedThirdCondition, fixedThirdCondition: fixedThirdCondition, fixedThirdConditionValue: fixedThirdConditionValue, parameter: selectedParameter, percentage: percentageInput, yMin: yMinInput, yMax: yMaxInput, normalization: selectedNormalization, range_start: rangeStart, range_end: rangeEnd })
     .then((response) => {
         const plotArea2 = document.getElementById('plotArea2');
         // Clear out the old images
@@ -104,6 +141,11 @@ function showPlot2() {
     })
     .catch((error) => {
         console.log(error);
+        if (error.response && error.response.status === 400) {
+            // If the server returned a 400 error, display the message to the user
+            alert(error.response.data.message);
+            location.reload();  // Reload the current page
+        }
     });
 }
     

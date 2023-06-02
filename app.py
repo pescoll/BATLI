@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory, url_for, send_file, abort
+from flask import Flask, render_template, request, jsonify, send_from_directory, url_for, send_file, abort, current_app
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -417,9 +417,16 @@ def plot2():
         return jsonify({'message': 'No file loaded'}), 400
 
     data = request.get_json()
+    print(f"Data received: {data}")
     selected_condition = data['condition']
     selected_second_condition = data.get('secondCondition')  # This will be None if not provided
+    print(f"Selected second condition (server side): {selected_second_condition}")
     selected_third_condition = data.get('thirdCondition')  # This will be None if not provided
+    fixed_third_condition = data.get('fixedThirdCondition')
+    if isinstance(fixed_third_condition, str):
+        fixed_third_condition = fixed_third_condition.lower() == 'true'
+    print(f"Fixed third condition (server side): {fixed_third_condition}")
+    fixed_third_condition_value = data.get('fixedThirdConditionValue')
     selected_parameter = data['parameter']
     percentage = int(data['percentage'])
 
@@ -470,17 +477,59 @@ def plot2():
     plot_urls = []
 
     try:
-        if selected_second_condition and selected_second_condition != 'none' and selected_third_condition and selected_third_condition != 'none':
-            condition_combinations = filtered_cells_df[[selected_condition, selected_second_condition, selected_third_condition]].drop_duplicates().values.tolist()
-        elif selected_second_condition and selected_second_condition != 'none':
-            condition_combinations = filtered_cells_df[[selected_condition, selected_second_condition]].drop_duplicates().values.tolist()
-        else:
-            condition_combinations = [(value,) for value in filtered_cells_df[selected_condition].unique()]
+        if fixed_third_condition:
+            if selected_third_condition is None:
+                return jsonify({'message': 'Third condition is fixed but no third condition was selected. Please select a third condition or uncheck the fixed third condition option.'}), 400
+            third_condition_value = fixed_third_condition_value
+            filtered_df = filtered_cells_df[filtered_cells_df[selected_third_condition] == third_condition_value]
 
+            if selected_second_condition and selected_second_condition != 'none':
+                condition_combinations = filtered_df[[selected_condition, selected_second_condition]].drop_duplicates().values.tolist()
+            else:
+                condition_combinations = [(value, third_condition_value) for value in filtered_df[selected_condition].unique()]
+        else:
+            if selected_second_condition and selected_second_condition != 'none' and selected_third_condition and selected_third_condition != 'none':
+                condition_combinations = filtered_cells_df[[selected_condition, selected_second_condition, selected_third_condition]].drop_duplicates().values.tolist()
+            elif selected_second_condition and selected_second_condition != 'none':
+                condition_combinations = filtered_cells_df[[selected_condition, selected_second_condition]].drop_duplicates().values.tolist()
+            elif selected_third_condition and selected_third_condition != 'none':
+                condition_combinations = [(value, third_condition_value) for value in filtered_cells_df[selected_condition].unique()]
+            else:
+                condition_combinations = [(value,) for value in filtered_cells_df[selected_condition].unique()]
+
+        print(f"Fixed third condition: {fixed_third_condition}")
+        print(f"Fixed third condition value: {fixed_third_condition_value}")
         print(f"Condition combinations: {condition_combinations}")  # print to debug
 
+        # Check if condition_combinations is empty
+        if not condition_combinations:
+            response = {
+                'message': 'No plots can be created with the selected conditions. Please adjust your selection and try again.',
+                'plot_urls': []  # Return an empty list as there are no plot URLs
+            }
+            return jsonify(response), 400  # Use HTTP status code 400 (Bad Request) to indicate a user error
+
         for condition_values in condition_combinations:
-            if len(condition_values) == 3:
+            # Filter out None values from condition_values
+            condition_values = [value for value in condition_values if value is not None]
+
+            if not condition_values:
+                # If all values were None, skip this iteration
+                continue
+            
+            if fixed_third_condition:
+                if selected_second_condition is not None:
+                    _df = filtered_cells_df[(filtered_cells_df[selected_condition] == condition_values[0]) & 
+                                            (filtered_cells_df[selected_second_condition] == condition_values[1]) & 
+                                            (filtered_cells_df[selected_third_condition] == third_condition_value)]
+                    num_cells = len(_df['cell_lbl'].unique())
+                    plot_title = f"{condition_values[0]} - {condition_values[1]} - {third_condition_value} (n = {num_cells} cells)"  # Set the plot title with all condition values
+                else:
+                    _df = filtered_cells_df[(filtered_cells_df[selected_condition] == condition_values[0]) & 
+                                            (filtered_cells_df[selected_third_condition] == third_condition_value)]
+                    num_cells = len(_df['cell_lbl'].unique())
+                    plot_title = f"{condition_values[0]} - {third_condition_value} (n = {num_cells} cells)"  # Set the plot title with condition and third_condition_value
+            elif len(condition_values) == 3:
                 _df = filtered_cells_df[(filtered_cells_df[selected_condition] == condition_values[0]) & 
                                         (filtered_cells_df[selected_second_condition] == condition_values[1]) & 
                                         (filtered_cells_df[selected_third_condition] == condition_values[2])]
@@ -498,26 +547,6 @@ def plot2():
             else:
                 continue  # if there are no conditions, continue to the next iteration
 
-
-    # try:
-    #     if selected_second_condition and selected_second_condition != 'none':
-    #         condition_combinations = filtered_cells_df[[selected_condition, selected_second_condition]].drop_duplicates().values.tolist()
-    #     else:
-    #         condition_combinations = [(value,) for value in filtered_cells_df[selected_condition].unique()]
-
-    #     print(f"Condition combinations: {condition_combinations}")  # print to debug
-
-    #     for condition_values in condition_combinations:
-    #         if len(condition_values) == 2:
-    #             _df = filtered_cells_df[(filtered_cells_df[selected_condition] == condition_values[0]) & (filtered_cells_df[selected_second_condition] == condition_values[1])]
-    #             num_cells = len(_df['cell_lbl'].unique())
-    #             plot_title = f"{condition_values[0]} - {condition_values[1]} (n = {num_cells} cells)"  # Set the plot title with both condition values
-    #         elif len(condition_values) == 1:
-    #             _df = filtered_cells_df[filtered_cells_df[selected_condition] == condition_values[0]]
-    #             num_cells = len(_df['cell_lbl'].unique())
-    #             plot_title = f"{condition_values[0]} (n = {num_cells} cells)"  # Set the plot title with only one condition value
-    #         else:
-    #             continue  # if there are no conditions, continue to the next iteration
 
             _df = _df.copy()
             _df['t'] = _df['t'].astype(int)
@@ -584,8 +613,10 @@ def plot2():
             plot_urls.append(url_for('serve_plots', path=plot2_path))
 
     except Exception as e:
-        app.logger.error(f'Error generating plot: {e}')
-        return jsonify({'message': f'Error generating plot: {e}'}), 500
+        current_app.logger.error(f'Error generating plot: {str(e)}')
+        raise
+        # app.logger.error(f'Error generating plot: {str(e)}')
+        # return jsonify({'message': f'Error generating plot: {str(e)}'}), 500
 
     response = {
         'message': 'Plots created successfully',
@@ -593,6 +624,18 @@ def plot2():
     }
 
     return jsonify(response), 200
+
+@app.route('/get_third_condition_values', methods=['POST'])
+def get_third_condition_values():
+    if current_filename is None:
+        return jsonify({'message': 'No file loaded'}), 400
+
+    condition = request.get_json().get('condition')
+
+    cells_df = pd.read_csv(os.path.join(app.config['UPLOAD_FOLDER'], current_filename))
+    unique_values = cells_df[condition].unique().tolist()
+    return jsonify(unique_values=unique_values)
+
 
 @app.route('/download', methods=['GET'])
 def download_results():

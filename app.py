@@ -284,6 +284,8 @@ def rename_columns():
         df.rename(columns=mappings, inplace=True)
         df.to_csv('./user_data/' + filename, index=False)
 
+        filename = filename.rsplit('.', 1)[0] + '.json'
+
         # Save the mappings as a json file
         with open('./user_data/new_param_' + filename, 'w') as file:
             json.dump(mappings, file)
@@ -480,7 +482,9 @@ def plot2():
         if fixed_third_condition:
             if selected_third_condition is None:
                 return jsonify({'message': 'Third condition is fixed but no third condition was selected. Please select a third condition or uncheck the fixed third condition option.'}), 400
-            third_condition_value = fixed_third_condition_value
+            # get the type of the first value in the selected_third_condition column
+            third_condition_type = type(filtered_cells_df[selected_third_condition].iloc[0])
+            third_condition_value = third_condition_type(fixed_third_condition_value)
             filtered_df = filtered_cells_df[filtered_cells_df[selected_third_condition] == third_condition_value]
 
             if selected_second_condition and selected_second_condition != 'none':

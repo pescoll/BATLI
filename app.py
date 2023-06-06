@@ -3,6 +3,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.polynomial.polynomial import Polynomial
 import io
 from io import BytesIO
 import base64
@@ -588,25 +589,70 @@ def plot2():
                         group[selected_parameter] /= average_value
                         _df.loc[group.index, selected_parameter] = group[selected_parameter]
 
-                # Delta normalization
-                # elif normalization == 'delta':
-                #     for cell_lbl, group in _df.groupby('cell_lbl'):
-                #         group[selected_parameter] = group[selected_parameter] / group[selected_parameter].shift(1)
-                #         _df.loc[group.index, selected_parameter] = group[selected_parameter]
-
+            # Delta normalization
             elif normalization == 'delta':
                 for cell_lbl, group in _df.groupby('cell_lbl'):
                     group[selected_parameter] = group[selected_parameter].diff()
                     _df.loc[group.index, selected_parameter] = group[selected_parameter]
 
+            # # Polynomial Curve Fitting, 5 degrees
+            # elif normalization == 'curve fitting':
+            #     for cell_lbl, group in _df.groupby('cell_lbl'):
+            #         # Subset df to get data of this particular object
+            #         sub_df = _df[_df['cell_lbl'] == cell_lbl]
+
+            #         # Extract the x and y data for polynomial fitting
+            #         x = sub_df['t'].values
+            #         y = sub_df[selected_parameter].values
+
+            #         # Perform polynomial regression with degree 5
+            #         coef = np.polyfit(x, y, 5)
+            #         poly1d_fn = np.poly1d(coef)
+
+            #         # Create a smooth line by predicting y for a range of x values
+            #         x_line = np.linspace(x.min(), x.max(), 500)
+            #         y_line = poly1d_fn(x_line)
+
+            #         # Plot the fitted curve
+            #         ax.plot(x_line, y_line, color='r', alpha=0.08)
 
             # Set the x-axis limit for each plot
             ax.set_xlim(t_min, t_max)
+      
+            
+            
+            if normalization == 'curve fitting':
+                # # Get the number of unique cells
+                # num_cells = len(_df['cell_lbl'].unique())
+        
+                # # Create a colormap with enough colors
+                # colormap = plt.cm.get_cmap('gist_ncar', num_cells)
+                for cell_lbl, group in _df.groupby('cell_lbl'):
+                    # Subset df to get data of this particular object
+                    sub_df = _df[_df['cell_lbl'] == cell_lbl]      
 
-            for k, v in _df.groupby('cell_lbl').groups.items():
-                single_cell_df = _df.loc[v]  # Subset of data that has only one cell
-                ax.plot(single_cell_df['t'], single_cell_df[selected_parameter], alpha=0.08)
+                # for i, (cell_lbl, group) in enumerate(_df.groupby('cell_lbl')):
+                #     # Subset df to get data of this particular object
+                    sub_df = _df[_df['cell_lbl'] == cell_lbl]
 
+                    # Extract the x and y data for polynomial fitting
+                    x = sub_df['t'].values
+                    y = sub_df[selected_parameter].values
+
+                    # Perform polynomial regression with degree 5
+                    coef = np.polyfit(x, y, 5)
+                    poly1d_fn = np.poly1d(coef)
+
+                    # Create a smooth line by predicting y for a range of x values
+                    x_line = np.linspace(x.min(), x.max(), 500)
+                    y_line = poly1d_fn(x_line)
+
+                    # Plot the fitted curve
+                    ax.plot(x_line, y_line, alpha=0.08)
+            else:
+                for k, v in _df.groupby('cell_lbl').groups.items():
+                    single_cell_df = _df.loc[v]  # Subset of data that has only one cell
+                    ax.plot(single_cell_df['t'], single_cell_df[selected_parameter], alpha=0.08)
             
             timestamp = datetime.datetime.now().strftime("%d%m%y-%H%M%S")
             condition_names = '_'.join(str(condition) for condition in condition_values)

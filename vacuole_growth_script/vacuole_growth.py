@@ -7,6 +7,12 @@ from scipy.stats import mannwhitneyu
 from statsmodels.stats.proportion import proportions_ztest
 import datetime
 
+# Datasets:
+# dataset_1 = MD_18 - vacuole_growth_script/table_plot_backward_bacteria_area_[um²]-_sum_per_cell__WT_5_cleaned_dataset_MD_18_Measurement_2_Evaluation4_Population_-_Tracked_Cells copy.csv
+# dataset_2 = MD_30 - vacuole_growth_script/table_plot_backward_legio_area_[um²]-_sum_per_cell__WT_cleaned_dataset_MD_30_Measurement_1_Evaluation2_Population_-_Tracked_Cells copy.csv
+# dataset_3 = EP149 - vacuole_growth_script/table_plot_backward_classes_Lpp_WT_cleaned_dataset_EP149_Measurement_1_Evaluation5_Population_-_Tracked_Nuclei copy.csv
+# dataset_4 = MD_28 - /vacuole_growth_script/table_plot_backward_classes_WT_cleaned_dataset_MD_28_Measurement_1_Evaluation1_Population_-_Tracked_Cells.csv
+
 # Dataset Paths
 dataset_1_path = './vacuole_growth_script/dataset_1.csv'
 dataset_2_path = './vacuole_growth_script/dataset_2.csv'

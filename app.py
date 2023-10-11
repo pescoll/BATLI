@@ -791,7 +791,12 @@ def plot3():
 
     # Filter the dataframe to only include cell_lbl's that pass the test_length function
     filtered_cells_df = cells_df[cells_df.groupby('cell_lbl')['t'].transform(test_length)].copy()
-    
+
+    # If 'bacteria' column exists, filter the dataframe based on the new condition and analyze only 'infected' == 1 cells
+    if 'bacteria' in filtered_cells_df.columns:
+        print('Analyzing infection!')
+        filtered_cells_df = filtered_cells_df[~((filtered_cells_df['bacteria'] != 'NI') & (filtered_cells_df['infected'] == 0))]
+
     print("Number of unique cell_lbl in original df: ", len(cells_df['cell_lbl'].unique()))
     print("Number of unique cell_lbl in filtered df: ", len(filtered_cells_df['cell_lbl'].unique()))
     
@@ -813,6 +818,7 @@ def plot3():
 
     # go over each cell:
     for lbl, gr in filtered_cells_df.groupby(['cell_lbl']):
+        lbl = lbl[0] if isinstance (lbl, tuple) else lbl
         # times = gr['t'].values
         growth = gr[selected_parameter].values 
         # calculate Area change:
@@ -833,7 +839,7 @@ def plot3():
     filtered_cells_df.loc[inds, 'growth'] = 1  # set to 1 those that are from rb_cells_lbl list
     filtered_cells_df.to_csv(f"computed_data/backward/table_single_cells_filtered.csv")
     print( 'Class_1 cells/total cells: %d / %d'%(len(class_1), len(class_1)+len(class_0)) )   
-
+    print(class_1)
     try:
         if selected_second_condition and selected_second_condition != 'none':
             condition_combinations = filtered_cells_df[[selected_condition, selected_second_condition]].drop_duplicates().values.tolist()
@@ -848,6 +854,7 @@ def plot3():
                 num_cells = len(_df['cell_lbl'].unique())
                 num_class_1  = len(_df[_df['growth'] == 1]['cell_lbl'].unique())
                 num_class_0 = len(_df[_df['growth'] == 0]['cell_lbl'].unique())          
+                print(num_class_1)
                 num_class_total = num_class_1+num_class_0
                 percentage_class_1 = (num_class_1*100)/num_class_total
                 percentage_class_1 = format(percentage_class_1, '.2f')
@@ -857,6 +864,7 @@ def plot3():
                 num_cells = len(_df['cell_lbl'].unique())
                 num_class_1  = len(_df[_df['growth'] == 1]['cell_lbl'].unique())
                 num_class_0 = len(_df[_df['growth'] == 0]['cell_lbl'].unique())                   
+                print(num_class_1)
                 num_class_total = num_class_1+num_class_0
                 percentage_class_1 = (num_class_1*100)/num_class_total
                 percentage_class_1 = format(percentage_class_1, '.2f')

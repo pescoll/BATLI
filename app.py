@@ -792,11 +792,6 @@ def plot3():
     # Filter the dataframe to only include cell_lbl's that pass the test_length function
     filtered_cells_df = cells_df[cells_df.groupby('cell_lbl')['t'].transform(test_length)].copy()
 
-    # If 'bacteria' column exists, filter the dataframe based on the new condition and analyze only 'infected' == 1 cells
-    if 'bacteria' in filtered_cells_df.columns:
-        print('Analyzing infection!')
-        filtered_cells_df = filtered_cells_df[~((filtered_cells_df['bacteria'] != 'NI') & (filtered_cells_df['infected'] == 0))]
-
     print("Number of unique cell_lbl in original df: ", len(cells_df['cell_lbl'].unique()))
     print("Number of unique cell_lbl in filtered df: ", len(filtered_cells_df['cell_lbl'].unique()))
     
@@ -990,6 +985,12 @@ def plot4():
     path = os.path.join(directory, filename)
 
     cells_df = pd.read_csv(path)
+
+    
+    # If 'bacteria' column exists, filter the dataframe based on the new condition and analyze only 'infected' == 1 cells
+    if 'bacteria' in cells_df.columns:
+        print('Analyzing infection!')
+        cells_df = cells_df[~((cells_df['bacteria'] != 'NI') & (cells_df['infected'] == 0))]
 
     # Find the global minimum and maximum 't' values
     t_min = cells_df['t'].min()

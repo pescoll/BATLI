@@ -144,7 +144,7 @@ def clean_dataframe(df, database_info):  # Basic cleaning and creation of unique
 
 @app.route('/')
 def index():
-    return render_template('loader.html')
+    return render_template('index.html')
 
 @app.route('/computed_data/plots/<path:path>')
 def serve_plots(path):
@@ -169,6 +169,12 @@ def serve_backward(path):
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '-1'
     return response
+
+# INSTRUCTIONS
+@app.route('/instructions')
+def instructions():
+    return render_template('instructions.html')
+
 
 # CLEANER
 @app.route('/cleaner')
@@ -417,7 +423,7 @@ def get_parameter_names():
     if current_filename is None:
         return jsonify({'message': 'No file loaded'}), 400
     cells_df = pd.read_csv(os.path.join(app.config['UPLOAD_FOLDER'], current_filename))
-    conditions_cols = ['bacteria', 'bact', 'compound', 'treatment', 'pretreatment', 'assay', 'assays', 'assay_number', 'moi'] # list of conditions columns
+    conditions_cols = ['bacteria', 'bact', 'compound', 'treatment', 'pretreatment', 'assay', 'assays', 'assay_number', 'moi', 'concentration', 'cell_type'] # list of conditions columns
     condition_cols = [col for col in conditions_cols if col in cells_df.columns]
     column_names = cells_df.select_dtypes(include=[np.number]).columns.tolist()
     print(condition_cols)
@@ -719,7 +725,7 @@ def download_results():
 
         return send_file(f'results_{timestamp}.zip',
                          mimetype='zip',
-                         attachment_filename=f'results_{timestamp}.zip',
+                         download_name=f'results_{timestamp}.zip',
                          as_attachment=True)
     except FileNotFoundError:
         abort(404)
@@ -736,7 +742,7 @@ def get_parameter_names_backward_1():
     if current_filename is None:
         return jsonify({'message': 'No file loaded'}), 400
     cells_df = pd.read_csv(os.path.join(app.config['UPLOAD_FOLDER'], current_filename))
-    conditions_cols = ['bacteria', 'bact', 'compound', 'treatment', 'pretreatment', 'assay', 'assays', 'assay_number', 'moi'] # list of conditions columns
+    conditions_cols = ['bacteria', 'bact', 'compound', 'treatment', 'pretreatment', 'assay', 'assays', 'assay_number', 'moi', 'concentration', 'cell_type'] # list of conditions columns
     condition_cols = [col for col in conditions_cols if col in cells_df.columns]
     column_names = cells_df.select_dtypes(include=[np.number]).columns.tolist()
     print(condition_cols)
@@ -960,7 +966,7 @@ def get_parameter_names_backward_2():
     directory = "computed_data/backward"
     path = os.path.join(directory, filename)
     cells_df = pd.read_csv(path)
-    conditions_cols2 = ['bacteria', 'bact', 'compound', 'treatment', 'pretreatment', 'assay', 'assays', 'assay_number', 'moi'] # list of conditions columns
+    conditions_cols2 = ['bacteria', 'bact', 'compound', 'treatment', 'pretreatment', 'assay', 'assays', 'assay_number', 'moi', 'concentration', 'cell_type'] # list of conditions columns
     condition_cols2 = [col for col in conditions_cols2 if col in cells_df.columns]
     column_names2 = cells_df.select_dtypes(include=[np.number]).columns.tolist()
     print(condition_cols2)
@@ -1177,14 +1183,14 @@ def download_results_backward():
         timestamp = datetime.datetime.now().strftime("%d%m%y-%H%M%S")
 
         # create zip file
-        shutil.make_archive(f'results_backward_{timestamp}', 'zip', 'temp')
+        shutil.make_archive(f'results_backtracking_{timestamp}', 'zip', 'temp')
 
         # remove temporary directory
         shutil.rmtree('temp')
 
-        return send_file(f'results_backward_{timestamp}.zip',
+        return send_file(f'results_backtracking_{timestamp}.zip',
                          mimetype='zip',
-                         attachment_filename=f'results_backward_{timestamp}.zip',
+                         download_name=f'results_backtracking_{timestamp}.zip',
                          as_attachment=True)
     except FileNotFoundError:
         abort(404)

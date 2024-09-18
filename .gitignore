@@ -2,3 +2,10 @@
 **/results
 **/previous_code
 **/test_datasets
+**/computed_data/backward
+**/computed_data/plots
+**/computed_data/tables
+**/calculate_vacuoles_scripts/results
+**/calculate_vacuoles_scripts/results2
+**/env
+**/user_data

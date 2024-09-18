@@ -1,1 +1,0 @@
-{"row": "row", "col": "col", "plane": "plane", "t": "t", "field": "field", "n": "n", "x": "x", "y": "y", "bbox": "bbox", "pos_x_um": "pos_x_um", "pos_y_um": "pos_y_um", "compound": "compound", "bacteria": "bacteria", "tracked_bacteria_area_[um\u00b2]-_sum_per_cell_": "legio_area", "tracked_red_sdmean": "tmrm_sdmean", "well_id": "well_id", "cell_lbl": "cell_lbl"}

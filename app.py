@@ -72,20 +72,6 @@ def clean_dataframe(df, database_info):  # Basic cleaning and creation of unique
             _well_id += 1 
             df.loc[inds, 'well_id'] = _well_id
 
-    # # Previous code Dmitry:
-    # # Assign unique cell labels to each row in one line
-    # df['cell_lbl'] = 'w' + df['well_id'].astype(str) + '_f' + df['field'].astype(str) + '_c' + df['N'].astype(str)
-    # # Sort values by 'cell_lbl' and 't' as before
-    # df.sort_values(['cell_lbl', 't'], inplace=True)
-    # # First, create the 'cell_lbl' column as before
-    # df['cell_lbl'] = 'w' + df['well_id'].astype(str) + '_f' + df['field'].astype(str) + '_c' + df['N'].astype(str)
-    # # Now group by 'cell_lbl'
-    # groups = df.groupby('cell_lbl')
-    # # For each group, sort by 't', then collect all groups back into a list of dataframes
-    # dfs_sorted = [group.sort_values('t') for _, group in groups]
-    # # Now concatenate all the sorted dataframes back together in one step, respecting the original order
-    # df = pd.concat(dfs_sorted)
-
     # First, create the 'cell_lbl' column as before
     df['cell_lbl'] = 'w' + df['well_id'].astype(str) + '_f' + df['field'].astype(str) + '_c' + df['N'].astype(str)
 
@@ -112,35 +98,11 @@ def clean_dataframe(df, database_info):  # Basic cleaning and creation of unique
     # and if you still need to sort and split the DataFrame into smaller dataframes, you can use:
     # dfs_to_concat = [group.sort_values('t') for _, group in df.groupby('cell_lbl')]
 
-    # OLD CODE DMITRY:
-    # # create unique cell id
-    # gr = df.groupby(['well_id', 'field', 'N'])
-    # # Initialize an empty list to store all subsets.
-    # dfs_to_concat = []
-    # for k, v in gr.groups.items():
-    #     w, f, c = k
-    #     _df = df.loc[v].sort_values('t')
-    #     try:
-    #         _cell_id = 'w%d_f%d_c%d' % (w, int(f), int(c))  # Convert f and c to integers
-    #     except ValueError:
-    #         print(f"Could not convert {f} or {c} to integer.")
-    #         continue
-    #     _df['cell_lbl'] = _cell_id
-
-    #     # Append this subset to the list of dataframes to concatenate.
-    #     dfs_to_concat.append(_df)  
-
-    #     # Concatenate all dataframes in the list after the loop.
-    #     cells_df = pd.concat(dfs_to_concat)
-
-    #     print(_cell_id)
-
     print(cells_df.columns)  # print column names before the operation
     cells_df.columns = cells_df.columns.str.lower().str.replace(' ', '_')
     print(cells_df.columns)  # print column names after the operation
 
     return cells_df
-
 
 @app.route('/')
 def index():
@@ -174,7 +136,6 @@ def serve_backward(path):
 @app.route('/instructions')
 def instructions():
     return render_template('instructions.html')
-
 
 # CLEANER
 @app.route('/cleaner')
@@ -304,7 +265,6 @@ def rename_columns():
     except Exception as e:
         return jsonify({'message': str(e)}), 500
 
-
 # LOADER
 
 @app.route('/loader')
@@ -345,9 +305,6 @@ def load_cleaned_dataset():
         db_info = json.load(f)
 
     # # Load the cleaned dataset into a DataFrame
-    # cells_df = pd.read_csv(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-    # print("Reading file into DataFrame")
-    # print(cells_df.columns)
 
     # Read the file content
     with open(os.path.join(app.config['UPLOAD_FOLDER'], filename), 'r') as f:
@@ -569,7 +526,6 @@ def plot2():
             else:
                 continue  # if there are no conditions, continue to the next iteration
 
-
             _df = _df.copy()
             _df['t'] = _df['t'].astype(int)
             _df.sort_values(by=['cell_lbl', 't'], inplace=True)  # Sort by 'cell_lbl' and 't'
@@ -590,10 +546,6 @@ def plot2():
                     t0_value = group.loc[group['t'].idxmin(), selected_parameter]
                     group[selected_parameter] /= t0_value
                     _df.loc[group.index, selected_parameter] = group[selected_parameter]
-                    # if t0_value == 0:
-                    #     t0_value = 1e-10  # Substitute a small positive number for t0_value
-                    # group[selected_parameter] /= t0_value
-                    # _df.loc[group.index, selected_parameter] = group[selected_parameter]
             
             # Normalize custom
             elif normalization == 'custom':
@@ -612,32 +564,9 @@ def plot2():
                     group[selected_parameter] = group[selected_parameter].diff()
                     _df.loc[group.index, selected_parameter] = group[selected_parameter]
 
-            # # Polynomial Curve Fitting, 5 degrees
-            # elif normalization == 'curve fitting':
-            #     for cell_lbl, group in _df.groupby('cell_lbl'):
-            #         # Subset df to get data of this particular object
-            #         sub_df = _df[_df['cell_lbl'] == cell_lbl]
-
-            #         # Extract the x and y data for polynomial fitting
-            #         x = sub_df['t'].values
-            #         y = sub_df[selected_parameter].values
-
-            #         # Perform polynomial regression with degree 5
-            #         coef = np.polyfit(x, y, 5)
-            #         poly1d_fn = np.poly1d(coef)
-
-            #         # Create a smooth line by predicting y for a range of x values
-            #         x_line = np.linspace(x.min(), x.max(), 500)
-            #         y_line = poly1d_fn(x_line)
-
-            #         # Plot the fitted curve
-            #         ax.plot(x_line, y_line, color='r', alpha=0.08)
-
             # Set the x-axis limit for each plot
             ax.set_xlim(t_min, t_max)
       
-            
-            
             if normalization == 'curve fitting':
                 # # Get the number of unique cells
                 # num_cells = len(_df['cell_lbl'].unique())
@@ -703,7 +632,6 @@ def get_third_condition_values():
     unique_values = cells_df[condition].unique().tolist()
     return jsonify(unique_values=unique_values)
 
-
 @app.route('/download', methods=['GET'])
 def download_results():
     try:
@@ -731,7 +659,7 @@ def download_results():
         abort(404)
 
 
-# BACKWARD ANALYSIS
+# BACKTRACKING ANALYSIS
 
 @app.route('/backward')
 def backward():
@@ -886,7 +814,6 @@ def plot3():
             if yMin is not None and yMax is not None:
                 ax.set_ylim(yMin, yMax)
 
-
             normalization = data['normalization']
 
             if normalization == 't0':
@@ -911,22 +838,15 @@ def plot3():
                         group[selected_parameter] /= average_value
                         _df.loc[group.index, selected_parameter] = group[selected_parameter]
 
-                # Delta normalization
-                # elif normalization == 'delta':
-                #     for cell_lbl, group in _df.groupby('cell_lbl'):
-                #         group[selected_parameter] = group[selected_parameter] / group[selected_parameter].shift(1)
-                #         _df.loc[group.index, selected_parameter] = group[selected_parameter]
 
             elif normalization == 'delta':
                 for cell_lbl, group in _df.groupby('cell_lbl'):
                     group[selected_parameter] = group[selected_parameter].diff()
                     _df.loc[group.index, selected_parameter] = group[selected_parameter]
 
-
             # Set the x-axis limit for each plot
             ax.set_xlim(t_min, t_max)
-
-    
+   
             # select a subset of data for class_1 and class_0
             _df_class_1 = _df[_df['growth']==1]
             _df_class_0 = _df[_df['growth']==0]                
@@ -991,8 +911,7 @@ def plot4():
     path = os.path.join(directory, filename)
 
     cells_df = pd.read_csv(path)
-
-    
+  
     # If 'bacteria' column exists, filter the dataframe based on the new condition and analyze only 'infected' == 1 cells
     if 'bacteria' in cells_df.columns:
         print('Analyzing infection!')
@@ -1075,10 +994,8 @@ def plot4():
             if yMin is not None and yMax is not None:
                 ax.set_ylim(yMin, yMax)
 
-
             # normalization = data['normalization']
             normalization = data.get('normalization', 'none')
-
 
             if normalization == 't0':
                 # Normalize the data to t=0
@@ -1113,7 +1030,6 @@ def plot4():
                     group[selected_parameter] = group[selected_parameter].diff()
                     _df.loc[group.index, selected_parameter] = group[selected_parameter]
 
-
             # Set the x-axis limit for each plot and colours
             ax.set_xlim(t_min, t_max)
 
@@ -1128,7 +1044,6 @@ def plot4():
                     # settings for class_1 cells plot
                     col = np.array( (238, 32, 77) )/255 # color red
                 ax.plot( gr['t'].values, gr[selected_parameter].values, '-', color = col, alpha=0.1, lw=1 )
-  
         
             # population average
             sns.lineplot( data=_df, x='t', y=selected_parameter,
@@ -1194,21 +1109,6 @@ def download_results_backward():
                          as_attachment=True)
     except FileNotFoundError:
         abort(404)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 # # # # # # # # # # # # # #
 

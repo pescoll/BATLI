@@ -1,7 +1,10 @@
 **/computed_data
-**/results
 **/previous_code
 **/test_datasets
 **/calculate_vacuoles_scripts/results
 **/calculate_vacuoles_scripts/results2
 **/env
+**/computed_data/plots
+**/computed_data/tables
+**/computed_data/backward
+**/user_data

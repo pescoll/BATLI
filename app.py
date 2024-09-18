@@ -699,6 +699,11 @@ def plot3():
 
     cells_df = pd.read_csv(os.path.join(app.config['UPLOAD_FOLDER'], current_filename))
 
+    # Analyzing only infected cells in Infected wells
+    if 'bacteria' in cells_df.columns:
+        print('Analyzing infection!')
+        cells_df = cells_df[~((cells_df['bacteria'] != 'NI') & (cells_df['infected'] == 0))]
+
     # Delete old backward_plot files
     for backward_plot_file in glob.glob('computed_data/backward/plot_*.png'):
         os.remove(backward_plot_file)    

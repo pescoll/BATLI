@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Cleaner - Backward Analysis of Time-Lapse Images</title>
+    <title>Cleaner - Backtracking Analysis of Time-Lapse Images</title>
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico" />
     <style>
@@ -21,10 +21,14 @@
 </head>
 <body>
     <nav>
+        <a href="/" class="nav-home">
+            <img src="/static/batli_logo_alpha.png" alt="BATLI Logo" class="nav-logo">
+        </a>
+        <a href="/instructions">Instructions</a>
         <a href="/cleaner">Cleaner</a>
         <a href="/loader">Loader</a>
         <a href="/viewer">Viewer</a>
-        <a href="/backward">Backward Analysis</a>
+        <a href="/backward">Backtracking</a>
     </nav>
     <h2>Dataset Cleaner</h2>
     <input type="file" id="fileInput" accept=".txt">

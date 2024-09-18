@@ -635,28 +635,35 @@ def get_third_condition_values():
 @app.route('/download', methods=['GET'])
 def download_results():
     try:
-        # create a temporary directory
+        # Create necessary directories
         os.makedirs('temp', exist_ok=True)
+        os.makedirs('user_data', exist_ok=True)
 
-        # copy files to temporary directory
+        # Copy files to the temporary directory
         shutil.copytree('computed_data/plots', 'temp/plots')
         shutil.copytree('computed_data/tables', 'temp/tables')
 
-        # create timestamp
+        # Create a timestamp for the filename
         timestamp = datetime.datetime.now().strftime("%d%m%y-%H%M%S")
 
-        # create zip file
-        shutil.make_archive(f'results_{timestamp}', 'zip', 'temp')
+        # Define the path to save the zip file in /user_data
+        zip_filename = f'results_{timestamp}.zip'
+        zip_filepath = os.path.join('user_data', zip_filename)
 
-        # remove temporary directory
+        # Create the zip file in the user_data directory
+        shutil.make_archive(base_name=zip_filepath[:-4], format='zip', root_dir='temp')
+
+        # Remove the temporary directory
         shutil.rmtree('temp')
 
-        return send_file(f'results_{timestamp}.zip',
-                         mimetype='zip',
-                         download_name=f'results_{timestamp}.zip',
+        # Send the file to the client from the user_data directory
+        return send_file(zip_filepath,
+                         mimetype='application/zip',
+                         download_name=zip_filename,
                          as_attachment=True)
     except FileNotFoundError:
         abort(404)
+
 
 
 # BACKTRACKING ANALYSIS
@@ -1088,27 +1095,33 @@ def plot4():
 @app.route('/download_backward', methods=['GET'])
 def download_results_backward():
     try:
-        # create a temporary directory
+        # Create a temporary directory
         os.makedirs('temp', exist_ok=True)
 
-        # copy files to temporary directory
+        # Copy files to the temporary directory
         shutil.copytree('computed_data/backward', 'temp/backward')
 
-        # create timestamp
+        # Create a timestamp for the filename
         timestamp = datetime.datetime.now().strftime("%d%m%y-%H%M%S")
 
-        # create zip file
-        shutil.make_archive(f'results_backtracking_{timestamp}', 'zip', 'temp')
+        # Define the path to save the zip file in /user_data
+        zip_filename = f'results_backtracking_{timestamp}.zip'
+        zip_filepath = os.path.join('user_data', zip_filename)
 
-        # remove temporary directory
+        # Create the zip file in the user_data directory
+        shutil.make_archive(base_name=zip_filepath[:-4], format='zip', root_dir='temp')
+
+        # Remove the temporary directory
         shutil.rmtree('temp')
 
-        return send_file(f'results_backtracking_{timestamp}.zip',
-                         mimetype='zip',
-                         download_name=f'results_backtracking_{timestamp}.zip',
+        # Send the file to the client from the user_data directory
+        return send_file(zip_filepath,
+                         mimetype='application/zip',
+                         download_name=zip_filename,
                          as_attachment=True)
     except FileNotFoundError:
         abort(404)
+
 
 # # # # # # # # # # # # # #
 

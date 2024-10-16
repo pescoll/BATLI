@@ -280,6 +280,7 @@ Alternatively, or if you find installation problems, you can install BATLI step 
 
 - **Customization**: BATLI can be customized to work with datasets from various image analysis tools. Modify the code as necessary to interpret your specific CSV file format.
 - **Support**: For questions or support, please open an issue on the [GitHub repository](https://github.com/pescoll/BATLI).
+- **Contributors**: BATLI software has been made possible thanks to the work of Mariatou Dramé, Dmitry Ershov, Jean-Yves Tinevez and Pedro Escoll (Institut Pasteur, Paris)
 - **Contribution**: Contributions are welcome! Feel free to fork the repository and submit pull requests with improvements or new features.
 
 ---

@@ -24,7 +24,7 @@ from matplotlib import rcParams
 
 
 # Data file.
-test_file = '/Users/pedro/Documents/ML/MD28_29_30_pooled_deltas.csv'
+csv_file = './ML/MD28_29_30_pooled.csv'
 # Features in the input data we use:
 features = ['delta_redsdmean', 'delta_farredsdmean', 'delta_farredmean']
 feature_labels = ['TMRM sd/mean', 'CellROX sd/mean', 'CellROX mean']
@@ -38,7 +38,7 @@ t_limit = 5  # time-point
 fraction = 0.25
 
 # Load data, split it in replicative vs non-replicative groups.
-df = pd.read_csv(test_file)
+df = pd.read_csv(csv_file)
 df_pos_avg, df_pos_std = get_average(df, True)
 df_neg_avg, df_neg_std = get_average(df, False)
 

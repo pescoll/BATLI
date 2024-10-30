@@ -4,7 +4,9 @@ BATLI stands for **Backtracking Analysis of Time-Lapse Images**. It is a bioinfo
 
 Using BATLI, you can classify cellular fates based on a single dynamic parameter and examine all other parameters through retrospective analysis for each identified category of cellular fate. This tool enables you to link certain dynamic parameters observed at the start of the time-lapse with specific cellular outcomes observed at the conclusion of the time-lapse. While these correlations can be revealing, they do not necessarily establish a cause-and-effect relationship. However, the insights gained from BATLI can indicate which parameters might be directly associated with particular cellular fates, valuable for developing predictive models for specific cellular outcomes.
 
-For more details, please refer to the [BATLI paper](https://www.biorxiv.org/content/10.1101/2021.05.12.443790v1.full.pdf+html).
+For more details, please refer to the [BATLI paper](https://www.biorxiv.org/content/10.1101/2024.10.28.620606v1.full.pdf+html).
+
+BATLI has been developed by Mariatou Dramé, Dmitry Ershov, Jean-Yves Tinevez and Pedro Escoll (Institut Pasteur, Paris)
 
 ---
 
@@ -280,7 +282,7 @@ Alternatively, or if you find installation problems, you can install BATLI step 
 
 - **Customization**: BATLI can be customized to work with datasets from various image analysis tools. Modify the code as necessary to interpret your specific CSV file format.
 - **Support**: For questions or support, please open an issue on the [GitHub repository](https://github.com/pescoll/BATLI).
-- **Contributors**: BATLI software has been made possible thanks to the work of Mariatou Dramé, Dmitry Ershov, Jean-Yves Tinevez and Pedro Escoll (Institut Pasteur, Paris)
+- **Contributors**: BATLI software has been developed by Mariatou Dramé, Dmitry Ershov, Jean-Yves Tinevez and Pedro Escoll (Institut Pasteur, Paris)
 - **Contribution**: Contributions are welcome! Feel free to fork the repository and submit pull requests with improvements or new features.
 
 ---

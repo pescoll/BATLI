@@ -305,7 +305,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 If you use BATLI in your research, please cite:
 
->  Dramé et al., “Backtracking Metabolic Dynamics in Single Cells Predicts Bacterial Replication in Human Macrophages” bioRxiv 2024.10.28.620606; doi: https://doi.org/10.1101/2024.10.28.620606. [Download] (https://www.biorxiv.org/content/10.1101/2024.10.28.620606v1.full.pdf)
+>  Dramé et al., “Backtracking Metabolic Dynamics in Single Cells Predicts Bacterial Replication in Human Macrophages” bioRxiv 2024.10.28.620606; doi: https://doi.org/10.1101/2024.10.28.620606. [Download](https://www.biorxiv.org/content/10.1101/2024.10.28.620606v1.full.pdf)
 
 ---
 

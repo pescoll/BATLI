@@ -280,6 +280,7 @@ Alternatively, or if you find installation problems, you can install BATLI step 
 
 ## Additional Information
 
+- **Typical install time on a "normal" desktop computer**: 10-15 minutes.
 - **Customization**: BATLI can be customized to work with datasets from various image analysis tools. Modify the code as necessary to interpret your specific CSV file format.
 - **Support**: For questions or support, please open an issue on the [GitHub repository](https://github.com/pescoll/BATLI).
 - **Contributors**: BATLI software has been developed by Mariatou Dramé, Dmitry Ershov, Jean-Yves Tinevez and Pedro Escoll (Institut Pasteur, Paris)

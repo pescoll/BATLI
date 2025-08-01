@@ -3,6 +3,7 @@
 /Users/pedro/Documents/GitHub/BATLI/source_data/batli_trajectories/Figure_2D.csv filter=lfs diff=lfs merge=lfs -text
 source_data/batli_trajectories/Figure_2D.csv filter=lfs diff=lfs merge=lfs -text
 **/Figure_2D.csv filter=lfs diff=lfs merge=lfs -text
+source_data/batli_trajectories/Figure_1E.csv filter=lfs diff=lfs merge=lfs -text
 **/Figure_1E.csv filter=lfs diff=lfs merge=lfs -text
 user_data/*.csv filter=lfs diff=lfs merge=lfs -text
 user_data/*.txt filter=lfs diff=lfs merge=lfs -text

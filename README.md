@@ -4,7 +4,7 @@ BATLI stands for **Backtracking Analysis of Time-Lapse Images**. It is a bioinfo
 
 Using BATLI, you can classify cellular fates based on a single dynamic parameter and examine all other parameters through retrospective analysis for each identified category of cellular fate. This tool enables you to link certain dynamic parameters observed at the start of the time-lapse with specific cellular outcomes observed at the conclusion of the time-lapse. While these correlations can be revealing, they do not necessarily establish a cause-and-effect relationship. However, the insights gained from BATLI can indicate which parameters might be directly associated with particular cellular fates, valuable for developing predictive models for specific cellular outcomes.
 
-For more details, please refer to the [BATLI paper](https://www.biorxiv.org/content/10.1101/2024.10.28.620606v1.full.pdf+html).
+For more details, please refer to the [BATLI paper](https://www.nature.com/articles/s41467-025-64225-0).
 
 BATLI has been developed by Mariatou Dramé, Dmitry Ershov, Jean-Yves Tinevez and Pedro Escoll (Institut Pasteur, Paris)
 
@@ -306,7 +306,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 If you use BATLI in your research, please cite:
 
->  Dramé et al., “Backtracking Metabolic Dynamics in Single Cells Predicts Bacterial Replication in Human Macrophages” bioRxiv 2024.10.28.620606; doi: https://doi.org/10.1101/2024.10.28.620606. [Download](https://www.biorxiv.org/content/10.1101/2024.10.28.620606v1.full.pdf)
+>  Dramé, M., Garcia-Rodriguez, FJ., Ershov, D. et al. Backtracking metabolic dynamics in single cells predicts bacterial replication in human macrophages. Nat Commun 16, 9189 (2025). https://doi.org/10.1038/s41467-025-64225-0 [Download](https://www.nature.com/articles/s41467-025-64225-0.pdf)
 
 ---
 

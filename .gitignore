@@ -3,3 +3,9 @@
 **/env
 **/.DS_Store
 .DS_Store
+computed_data/
+user_data/
+venv/
+venv_installed.flag
+Launch_BATLI.app/
+extra_local/

@@ -433,16 +433,16 @@ def plot2():
     total_timepoints = len(cells_df['t'].unique())
     required_timepoints = total_timepoints * percentage // 100
 
-    # Define a function to test if a cell_lbl's track length is above the required threshold
-    def test_length(x):
-        return len(x) >= required_timepoints
+    # Define the test_length function
+    def test_length(group):
+        return len(group) >= required_timepoints
 
+    # Filter the dataframe
+    filtered_cells_df = cells_df.groupby('cell_lbl').filter(test_length).copy()
+
+    # Output for verification
     print("Total timepoints: ", total_timepoints)
     print("Required timepoints: ", required_timepoints)
-
-    # Filter the dataframe to only include cell_lbl's that pass the test_length function
-    filtered_cells_df = cells_df[cells_df.groupby('cell_lbl')['t'].transform(test_length)].copy()
-    
     print("Number of unique cell_lbl in original df: ", len(cells_df['cell_lbl'].unique()))
     print("Number of unique cell_lbl in filtered df: ", len(filtered_cells_df['cell_lbl'].unique()))
     
@@ -530,11 +530,11 @@ def plot2():
             _df['t'] = _df['t'].astype(int)
             _df.sort_values(by=['cell_lbl', 't'], inplace=True)  # Sort by 'cell_lbl' and 't'
 
-            fig, ax = plt.subplots(figsize=(12, 4))  # New figure for each condition
+            fig, ax = plt.subplots(figsize=(9, 9))  # New figure for each condition, here control SIZE
 
             ax.set_title(plot_title)
-            ax.set_ylabel(selected_parameter)
-            ax.set_xlabel('time')
+            ax.set_ylabel(selected_parameter, fontsize=30)
+            ax.set_xlabel('time', fontsize=30)
             if yMin is not None and yMax is not None:
                 ax.set_ylim(yMin, yMax)
 
@@ -598,7 +598,7 @@ def plot2():
             else:
                 for k, v in _df.groupby('cell_lbl').groups.items():
                     single_cell_df = _df.loc[v]  # Subset of data that has only one cell
-                    ax.plot(single_cell_df['t'], single_cell_df[selected_parameter], alpha=0.08)
+                    ax.plot(single_cell_df['t'], single_cell_df[selected_parameter], alpha=0.2, lw=1) # here control transparency
             
             timestamp = datetime.datetime.now().strftime("%d%m%y-%H%M%S")
             condition_names = '_'.join(str(condition) for condition in condition_values)
@@ -735,8 +735,9 @@ def plot3():
     print("Total timepoints: ", total_timepoints)
     print("Required timepoints: ", required_timepoints)
 
-    # Filter the dataframe to only include cell_lbl's that pass the test_length function
-    filtered_cells_df = cells_df[cells_df.groupby('cell_lbl')['t'].transform(test_length)].copy()
+    # Filter the DataFrame to only include cell_lbl's that pass the test_length function
+    # Use .filter() instead of .transform() for better reliability
+    filtered_cells_df = cells_df.groupby('cell_lbl').filter(test_length).copy()
 
     print("Number of unique cell_lbl in original df: ", len(cells_df['cell_lbl'].unique()))
     print("Number of unique cell_lbl in filtered df: ", len(filtered_cells_df['cell_lbl'].unique()))
@@ -999,10 +1000,12 @@ def plot4():
             _df['t'] = _df['t'].astype(int)
             _df.sort_values(by=['cell_lbl', 't'], inplace=True)  # Sort by 'cell_lbl' and 't'
 
-            fig, ax = plt.subplots(figsize=(12, 4))  # New figure for each condition
+            fig, ax = plt.subplots(figsize=(9, 9))  # New figure for each condition
             ax.set_title(plot_title)
-            ax.set_ylabel(selected_parameter)
-            ax.set_xlabel('time')
+            ax.set_ylabel(selected_parameter, fontsize=30)
+            ax.set_xlabel('time', fontsize=30)
+            ax.tick_params(axis='both', which='major', labelsize=30)  # Change font size for tick labels
+
             if yMin is not None and yMax is not None:
                 ax.set_ylim(yMin, yMax)
 
@@ -1051,31 +1054,68 @@ def plot4():
             for lbl, gr in _df.groupby('cell_lbl'):
                 if gr['growth'].unique() == 0:
                     # settings for class_0 cells plot
-                    col = np.array( (72, 219, 251) )/255 # color blue
+                    col = np.array( (51, 153, 255) )/255 # color blue ;  dark blue col = np.array( (60, 51, 251) )/255 ; ORIGINAL BATLI PAPER: (72, 219, 251) )/255 # color blue
                 else:
                     # settings for class_1 cells plot
-                    col = np.array( (238, 32, 77) )/255 # color red
-                ax.plot( gr['t'].values, gr[selected_parameter].values, '-', color = col, alpha=0.1, lw=1 )
+                    col = np.array( (147, 19, 4) )/255 # color red ; other dark red:  (211, 19, 4) )/255  ;  ORIGINAL BATLI PAPER: (238, 32, 77) )/255 # color red
+                ax.plot( gr['t'].values, gr[selected_parameter].values, '-', color = col, alpha=0.2, lw=2 )
         
-            # population average
-            sns.lineplot( data=_df, x='t', y=selected_parameter,
-                     hue='growth', palette=growth_color_map, 
-                     ax=ax, linewidth=2, estimator=np.median )
+            # # population average
+            # sns.lineplot( data=_df, x='t', y=selected_parameter,
+            #          hue='growth', palette=growth_color_map, 
+            #          ax=ax, linewidth=2, estimator=np.median )
 
-            # Display both colors in the legend
-            handles, labels = ax.get_legend_handles_labels()
-            # handles[0] is the legend title, handles[1] is for 'growth=0', and handles[2] is for 'growth=1'.
-            ax.legend(handles=handles, labels=labels)
+            # # Display both colors in the legend
+            # handles, labels = ax.get_legend_handles_labels()
+            # # handles[0] is the legend title, handles[1] is for 'growth=0', and handles[2] is for 'growth=1'.
+            # ax.legend(handles=handles, labels=labels)
 
-            # To add the general name above the legend
-            ax.legend(title='class')
+            # # To add the general name above the legend
+            # ax.legend(title='class')
 
-            # Set legend location
-            ax.legend(loc='upper right')
+            # # Set legend location
+            # ax.legend(loc='upper right')
             
             # # To remove legend title
             # handles, labels = ax.get_legend_handles_labels()
-            # ax.legend(handles=handles[1:], labels=labels[1:])       
+            # ax.legend(handles=handles[1:], labels=labels[1:])     
+            # 
+            # ORIGINAL BATLI GRAPHS:
+            # Set the x-axis limit for each plot and colours
+            # ax.set_xlim(t_min, t_max)
+
+            # # Prepare color palette
+            # growth_color_map = {0: 'blue', 1: 'red'}      
+
+            # for lbl, gr in _df.groupby('cell_lbl'):
+            #     if gr['growth'].unique() == 0:
+            #         # settings for class_0 cells plot
+            #         col = np.array( (72, 219, 251) )/255 # color blue
+            #     else:
+            #         # settings for class_1 cells plot
+            #         col = np.array( (238, 32, 77) )/255 # color red
+            #     ax.plot( gr['t'].values, gr[selected_parameter].values, '-', color = col, alpha=0.1, lw=1 )
+        
+            # # population average
+            # sns.lineplot( data=_df, x='t', y=selected_parameter,
+            #          hue='growth', palette=growth_color_map, 
+            #          ax=ax, linewidth=2, estimator=np.median )
+
+            # # Display both colors in the legend
+            # handles, labels = ax.get_legend_handles_labels()
+            # # handles[0] is the legend title, handles[1] is for 'growth=0', and handles[2] is for 'growth=1'.
+            # ax.legend(handles=handles, labels=labels)
+
+            # # To add the general name above the legend
+            # ax.legend(title='class')
+
+            # # Set legend location
+            # ax.legend(loc='upper right')
+            
+            # # # To remove legend title
+            # # handles, labels = ax.get_legend_handles_labels()
+            # # ax.legend(handles=handles[1:], labels=labels[1:])       
+              
             
             timestamp = datetime.datetime.now().strftime("%d%m%y-%H%M%S")
             condition_names = '_'.join(str(condition) for condition in condition_values)

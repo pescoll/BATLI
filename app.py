@@ -104,6 +104,21 @@ def clean_dataframe(df, database_info):  # Basic cleaning and creation of unique
 
     return cells_df
 
+def find_infected_column(df):
+    # Return the name of the infected-status column: 'infected' or 'IF' (any capitalization), or None if absent
+    for col in df.columns:
+        if isinstance(col, str) and col.lower() in ('infected', 'if'):
+            return col
+    return None
+
+def classification_tags(threshold, percentage):
+    # Short tags describing the classification settings used in plot3,
+    # e.g. title tag 'th:15,50%' and filename-safe tag 'th15_50' (negative: 'th-14_90')
+    threshold_str = f"{float(threshold):g}"
+    title_tag = f"th:{threshold_str},{percentage}%"
+    file_tag = f"th{threshold_str.replace('.', 'p')}_{percentage}"
+    return title_tag, file_tag
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -406,6 +421,7 @@ def plot2():
     fixed_third_condition_value = data.get('fixedThirdConditionValue')
     selected_parameter = data['parameter']
     percentage = int(data['percentage'])
+    plot_style = data.get('plotStyle', 'original')  # 'original' (BATLI classic) or 'publication'
 
     cells_df = pd.read_csv(os.path.join(app.config['UPLOAD_FOLDER'], current_filename))
 
@@ -530,11 +546,16 @@ def plot2():
             _df['t'] = _df['t'].astype(int)
             _df.sort_values(by=['cell_lbl', 't'], inplace=True)  # Sort by 'cell_lbl' and 't'
 
-            fig, ax = plt.subplots(figsize=(9, 9))  # New figure for each condition, here control SIZE
-
-            ax.set_title(plot_title)
-            ax.set_ylabel(selected_parameter, fontsize=30)
-            ax.set_xlabel('time', fontsize=30)
+            if plot_style == 'publication':
+                fig, ax = plt.subplots(figsize=(9, 9))  # Publication mode: square figure
+                ax.set_title(plot_title)
+                ax.set_ylabel(selected_parameter, fontsize=30)
+                ax.set_xlabel('time', fontsize=30)
+            else:
+                fig, ax = plt.subplots(figsize=(12, 4))  # Original BATLI figure
+                ax.set_title(plot_title)
+                ax.set_ylabel(selected_parameter)
+                ax.set_xlabel('time')
             if yMin is not None and yMax is not None:
                 ax.set_ylim(yMin, yMax)
 
@@ -598,7 +619,10 @@ def plot2():
             else:
                 for k, v in _df.groupby('cell_lbl').groups.items():
                     single_cell_df = _df.loc[v]  # Subset of data that has only one cell
-                    ax.plot(single_cell_df['t'], single_cell_df[selected_parameter], alpha=0.2, lw=1) # here control transparency
+                    if plot_style == 'publication':
+                        ax.plot(single_cell_df['t'], single_cell_df[selected_parameter], alpha=0.2, lw=1)  # publication: more visible traces
+                    else:
+                        ax.plot(single_cell_df['t'], single_cell_df[selected_parameter], alpha=0.08)  # original BATLI transparency
             
             timestamp = datetime.datetime.now().strftime("%d%m%y-%H%M%S")
             condition_names = '_'.join(str(condition) for condition in condition_values)
@@ -699,10 +723,12 @@ def plot3():
 
     cells_df = pd.read_csv(os.path.join(app.config['UPLOAD_FOLDER'], current_filename))
 
-    # Analyzing only infected cells in Infected wells
+    # Analyzing only infected cells in Infected wells (column can be named 'infected' or 'IF')
     if 'bacteria' in cells_df.columns:
-        print('Analyzing infection!')
-        cells_df = cells_df[~((cells_df['bacteria'] != 'NI') & (cells_df['infected'] == 0))]
+        infected_col = find_infected_column(cells_df)
+        if infected_col is not None:
+            print(f'Analyzing infection! (infected-status column: {infected_col})')
+            cells_df = cells_df[~((cells_df['bacteria'] != 'NI') & (cells_df[infected_col] == 0))]
 
     # Delete old backward_plot files
     for backward_plot_file in glob.glob('computed_data/backward/plot_*.png'):
@@ -767,7 +793,14 @@ def plot3():
         # array[-N:] -> returns last N elements
         # array[0:N] -> returns first N elements
         dA = float(growth[-Np:].mean() - growth[0:Np].mean())
-        if dA >= threshold:
+        # Positive threshold: class_1 if the value increases by at least `threshold`.
+        # Negative threshold: class_1 if the value decreases by at least |threshold|
+        # (e.g. -14 selects cells whose value drops 14 or more from beginning to end).
+        if threshold >= 0:
+            is_class_1 = dA >= threshold
+        else:
+            is_class_1 = dA <= threshold
+        if is_class_1:
             class_1.append( lbl )
             print(lbl, growth[-Np:].mean(), growth[0:Np].mean(), dA)
         else:
@@ -780,7 +813,15 @@ def plot3():
     filtered_cells_df['growth'] = 0 # 0 by default
     filtered_cells_df.loc[inds, 'growth'] = 1  # set to 1 those that are from rb_cells_lbl list
     filtered_cells_df.to_csv(f"computed_data/backward/table_single_cells_filtered.csv")
-    print( 'Class_1 cells/total cells: %d / %d'%(len(class_1), len(class_1)+len(class_0)) )   
+
+    # Save the classification settings so plot4 can tag its graphs with them
+    with open('computed_data/backward/classification_info.json', 'w') as f:
+        json.dump({'threshold': threshold, 'percentage': percentage}, f)
+
+    # Short tags describing the classification settings, for titles and filenames
+    title_tag, file_tag = classification_tags(threshold, percentage)
+
+    print( 'Class_1 cells/total cells: %d / %d'%(len(class_1), len(class_1)+len(class_0)) )
     print(class_1)
     try:
         if selected_second_condition and selected_second_condition != 'none':
@@ -800,17 +841,17 @@ def plot3():
                 num_class_total = num_class_1+num_class_0
                 percentage_class_1 = (num_class_1*100)/num_class_total
                 percentage_class_1 = format(percentage_class_1, '.2f')
-                plot_title = f"{condition_values[0]} - {condition_values[1]} (n = {num_cells} cells, class_1 = {num_class_1} of {num_class_total} cells - {percentage_class_1}%)"  # Set the plot title with both condition values
+                plot_title = f"{condition_values[0]} - {condition_values[1]} (n = {num_cells} cells, class_1 = {num_class_1} of {num_class_total} cells - {percentage_class_1}%) {title_tag}"  # Set the plot title with both condition values
             elif len(condition_values) == 1:
                 _df = filtered_cells_df[filtered_cells_df[selected_condition] == condition_values[0]]
                 num_cells = len(_df['cell_lbl'].unique())
                 num_class_1  = len(_df[_df['growth'] == 1]['cell_lbl'].unique())
-                num_class_0 = len(_df[_df['growth'] == 0]['cell_lbl'].unique())                   
+                num_class_0 = len(_df[_df['growth'] == 0]['cell_lbl'].unique())
                 print(num_class_1)
                 num_class_total = num_class_1+num_class_0
                 percentage_class_1 = (num_class_1*100)/num_class_total
                 percentage_class_1 = format(percentage_class_1, '.2f')
-                plot_title = f"{condition_values[0]} (n = {num_cells} cells, class_1 = {num_class_1} of {num_class_total} cells - {percentage_class_1}%)"  # Set the plot title with both condition values
+                plot_title = f"{condition_values[0]} (n = {num_cells} cells, class_1 = {num_class_1} of {num_class_total} cells - {percentage_class_1}%) {title_tag}"  # Set the plot title with both condition values
             else:
                 continue  # if there are no conditions, continue to the next iteration
 
@@ -872,7 +913,7 @@ def plot3():
             
             timestamp = datetime.datetime.now().strftime("%d%m%y-%H%M%S")
             condition_names = '_'.join(str(condition) for condition in condition_values)
-            plot3_path = f"plot_backward_classes_{condition_names}_{current_filename}_{timestamp}.png"
+            plot3_path = f"plot_backward_classes_{condition_names}_{file_tag}_{current_filename}_{timestamp}.png"
             _df.to_csv(f"computed_data/backward/table_{plot3_path.split('.')[0]}.csv")
             plt.savefig('computed_data/backward/' + plot3_path)
 
@@ -917,6 +958,7 @@ def plot4():
     selected_second_condition = data.get('secondCondition')  # This will be None if not provided
     selected_parameter = data['parameter']
     percentage = int(data['percentage'])
+    plot_style = data.get('plotStyle', 'original')  # 'original' (BATLI classic) or 'publication'
 
     # Read the dataframe
     filename = "table_single_cells_filtered.csv"
@@ -924,11 +966,24 @@ def plot4():
     path = os.path.join(directory, filename)
 
     cells_df = pd.read_csv(path)
-  
-    # If 'bacteria' column exists, filter the dataframe based on the new condition and analyze only 'infected' == 1 cells
+
+    # Load the classification settings saved by plot3 (threshold and % track length)
+    # to tag titles and filenames of the backtracking graphs
+    title_tag = ''
+    file_tag = ''
+    class_info_path = os.path.join(directory, 'classification_info.json')
+    if os.path.exists(class_info_path):
+        with open(class_info_path, 'r') as f:
+            class_info = json.load(f)
+        title_tag, file_tag = classification_tags(class_info['threshold'], class_info['percentage'])
+
+    # If 'bacteria' column exists, analyze only infected cells in infected wells
+    # (infected-status column can be named 'infected' or 'IF')
     if 'bacteria' in cells_df.columns:
-        print('Analyzing infection!')
-        cells_df = cells_df[~((cells_df['bacteria'] != 'NI') & (cells_df['infected'] == 0))]
+        infected_col = find_infected_column(cells_df)
+        if infected_col is not None:
+            print(f'Analyzing infection! (infected-status column: {infected_col})')
+            cells_df = cells_df[~((cells_df['bacteria'] != 'NI') & (cells_df[infected_col] == 0))]
 
     # Find the global minimum and maximum 't' values
     t_min = cells_df['t'].min()
@@ -953,9 +1008,10 @@ def plot4():
     print("Total timepoints: ", total_timepoints)
     print("Required timepoints: ", required_timepoints)
 
-    # Filter the dataframe to only include cell_lbl's that pass the test_length function
-    filtered_cells_df = cells_df[cells_df.groupby('cell_lbl')['t'].transform(test_length)].copy()
-    
+    # Filter the DataFrame to only include cell_lbl's that pass the test_length function
+    # Use .filter() instead of .transform() for better reliability
+    filtered_cells_df = cells_df.groupby('cell_lbl').filter(test_length).copy()
+
     print("Number of unique cell_lbl in original df: ", len(cells_df['cell_lbl'].unique()))
     print("Number of unique cell_lbl in filtered df: ", len(filtered_cells_df['cell_lbl'].unique()))
     
@@ -983,16 +1039,16 @@ def plot4():
                 num_class_total = num_class_1+num_class_0
                 percentage_class_1 = (num_class_1*100)/num_class_total
                 percentage_class_1 = format(percentage_class_1, '.2f')
-                plot_title = f"{condition_values[0]} - {condition_values[1]} (n = {num_cells} cells, class_1 = {num_class_1} of {num_class_total} cells - {percentage_class_1}%)"  # Set the plot title with both condition values
+                plot_title = f"{condition_values[0]} - {condition_values[1]} (n = {num_cells} cells, class_1 = {num_class_1} of {num_class_total} cells - {percentage_class_1}%) {title_tag}"  # Set the plot title with both condition values
             elif len(condition_values) == 1:
                 _df = filtered_cells_df[filtered_cells_df[selected_condition] == condition_values[0]]
                 num_cells = len(_df['cell_lbl'].unique())
                 num_class_1  = len(_df[_df['growth'] == 1]['cell_lbl'].unique())
-                num_class_0 = len(_df[_df['growth'] == 0]['cell_lbl'].unique())                   
+                num_class_0 = len(_df[_df['growth'] == 0]['cell_lbl'].unique())
                 num_class_total = num_class_1+num_class_0
                 percentage_class_1 = (num_class_1*100)/num_class_total
                 percentage_class_1 = format(percentage_class_1, '.2f')
-                plot_title = f"{condition_values[0]} (n = {num_cells} cells, class_1 = {num_class_1} of {num_class_total} cells - {percentage_class_1}%)"  # Set the plot title with both condition values
+                plot_title = f"{condition_values[0]} (n = {num_cells} cells, class_1 = {num_class_1} of {num_class_total} cells - {percentage_class_1}%) {title_tag}"  # Set the plot title with both condition values
             else:
                 continue  # if there are no conditions, continue to the next iteration
 
@@ -1000,11 +1056,17 @@ def plot4():
             _df['t'] = _df['t'].astype(int)
             _df.sort_values(by=['cell_lbl', 't'], inplace=True)  # Sort by 'cell_lbl' and 't'
 
-            fig, ax = plt.subplots(figsize=(9, 9))  # New figure for each condition
-            ax.set_title(plot_title)
-            ax.set_ylabel(selected_parameter, fontsize=30)
-            ax.set_xlabel('time', fontsize=30)
-            ax.tick_params(axis='both', which='major', labelsize=30)  # Change font size for tick labels
+            if plot_style == 'publication':
+                fig, ax = plt.subplots(figsize=(9, 9))  # Publication mode: square figure
+                ax.set_title(plot_title)
+                ax.set_ylabel(selected_parameter, fontsize=30)
+                ax.set_xlabel('time', fontsize=30)
+                ax.tick_params(axis='both', which='major', labelsize=30)  # Change font size for tick labels
+            else:
+                fig, ax = plt.subplots(figsize=(12, 4))  # Original BATLI figure
+                ax.set_title(plot_title)
+                ax.set_ylabel(selected_parameter)
+                ax.set_xlabel('time')
 
             if yMin is not None and yMax is not None:
                 ax.set_ylim(yMin, yMax)
@@ -1049,77 +1111,41 @@ def plot4():
             ax.set_xlim(t_min, t_max)
 
             # Prepare color palette
-            growth_color_map = {0: 'blue', 1: 'red'}      
+            growth_color_map = {0: 'blue', 1: 'red'}
 
-            for lbl, gr in _df.groupby('cell_lbl'):
-                if gr['growth'].unique() == 0:
-                    # settings for class_0 cells plot
-                    col = np.array( (51, 153, 255) )/255 # color blue ;  dark blue col = np.array( (60, 51, 251) )/255 ; ORIGINAL BATLI PAPER: (72, 219, 251) )/255 # color blue
-                else:
-                    # settings for class_1 cells plot
-                    col = np.array( (147, 19, 4) )/255 # color red ; other dark red:  (211, 19, 4) )/255  ;  ORIGINAL BATLI PAPER: (238, 32, 77) )/255 # color red
-                ax.plot( gr['t'].values, gr[selected_parameter].values, '-', color = col, alpha=0.2, lw=2 )
-        
-            # # population average
-            # sns.lineplot( data=_df, x='t', y=selected_parameter,
-            #          hue='growth', palette=growth_color_map, 
-            #          ax=ax, linewidth=2, estimator=np.median )
+            if plot_style == 'publication':
+                # Publication mode: darker colors, thicker/more visible traces, no median overlay or legend
+                for lbl, gr in _df.groupby('cell_lbl'):
+                    if gr['growth'].unique() == 0:
+                        # settings for class_0 cells plot
+                        col = np.array( (51, 153, 255) )/255 # publication blue
+                    else:
+                        # settings for class_1 cells plot
+                        col = np.array( (147, 19, 4) )/255 # publication dark red
+                    ax.plot( gr['t'].values, gr[selected_parameter].values, '-', color = col, alpha=0.2, lw=2 )
+            else:
+                # Original BATLI graphs
+                for lbl, gr in _df.groupby('cell_lbl'):
+                    if gr['growth'].unique() == 0:
+                        # settings for class_0 cells plot
+                        col = np.array( (72, 219, 251) )/255 # color blue
+                    else:
+                        # settings for class_1 cells plot
+                        col = np.array( (238, 32, 77) )/255 # color red
+                    ax.plot( gr['t'].values, gr[selected_parameter].values, '-', color = col, alpha=0.1, lw=1 )
 
-            # # Display both colors in the legend
-            # handles, labels = ax.get_legend_handles_labels()
-            # # handles[0] is the legend title, handles[1] is for 'growth=0', and handles[2] is for 'growth=1'.
-            # ax.legend(handles=handles, labels=labels)
+                # population average
+                sns.lineplot( data=_df, x='t', y=selected_parameter,
+                         hue='growth', palette=growth_color_map,
+                         ax=ax, linewidth=2, estimator=np.median )
 
-            # # To add the general name above the legend
-            # ax.legend(title='class')
+                # Set legend location
+                ax.legend(loc='upper right')
 
-            # # Set legend location
-            # ax.legend(loc='upper right')
-            
-            # # To remove legend title
-            # handles, labels = ax.get_legend_handles_labels()
-            # ax.legend(handles=handles[1:], labels=labels[1:])     
-            # 
-            # ORIGINAL BATLI GRAPHS:
-            # Set the x-axis limit for each plot and colours
-            # ax.set_xlim(t_min, t_max)
-
-            # # Prepare color palette
-            # growth_color_map = {0: 'blue', 1: 'red'}      
-
-            # for lbl, gr in _df.groupby('cell_lbl'):
-            #     if gr['growth'].unique() == 0:
-            #         # settings for class_0 cells plot
-            #         col = np.array( (72, 219, 251) )/255 # color blue
-            #     else:
-            #         # settings for class_1 cells plot
-            #         col = np.array( (238, 32, 77) )/255 # color red
-            #     ax.plot( gr['t'].values, gr[selected_parameter].values, '-', color = col, alpha=0.1, lw=1 )
-        
-            # # population average
-            # sns.lineplot( data=_df, x='t', y=selected_parameter,
-            #          hue='growth', palette=growth_color_map, 
-            #          ax=ax, linewidth=2, estimator=np.median )
-
-            # # Display both colors in the legend
-            # handles, labels = ax.get_legend_handles_labels()
-            # # handles[0] is the legend title, handles[1] is for 'growth=0', and handles[2] is for 'growth=1'.
-            # ax.legend(handles=handles, labels=labels)
-
-            # # To add the general name above the legend
-            # ax.legend(title='class')
-
-            # # Set legend location
-            # ax.legend(loc='upper right')
-            
-            # # # To remove legend title
-            # # handles, labels = ax.get_legend_handles_labels()
-            # # ax.legend(handles=handles[1:], labels=labels[1:])       
-              
-            
             timestamp = datetime.datetime.now().strftime("%d%m%y-%H%M%S")
             condition_names = '_'.join(str(condition) for condition in condition_values)
-            plot4_path = f"plot_backward_{selected_parameter}_{condition_names}_{current_filename}_{timestamp}.png"
+            file_tag_part = f"{file_tag}_" if file_tag else ""
+            plot4_path = f"plot_backward_{selected_parameter}_{condition_names}_{file_tag_part}{current_filename}_{timestamp}.png"
             _df.to_csv(f"computed_data/backward/table_{plot4_path.split('.')[0]}.csv")
             plt.savefig('computed_data/backward/' + plot4_path)
 

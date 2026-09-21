@@ -174,9 +174,10 @@ function showPlot4() {
     var selectedSecondCondition2 = secondConditionDropdown2.options[secondConditionDropdown2.selectedIndex].value;
     var selectedParameter2 = parametersDropdown2.options[parametersDropdown2.selectedIndex].value;
     var selectedNormalization2 = normalizationDropdown2.options[normalizationDropdown2.selectedIndex].value;
+    var selectedPlotStyle = document.querySelector('input[name="plotStyle"]:checked').value;
 
-    
-    axios.post('/plot4', { condition: selectedCondition2, secondCondition: selectedSecondCondition2, parameter: selectedParameter2, percentage: percentageInput2, yMin: yMinInput2, yMax: yMaxInput2, normalization: selectedNormalization2, range_start: rangeStart2, range_end: rangeEnd2 })
+
+    axios.post('/plot4', { condition: selectedCondition2, secondCondition: selectedSecondCondition2, parameter: selectedParameter2, percentage: percentageInput2, yMin: yMinInput2, yMax: yMaxInput2, normalization: selectedNormalization2, range_start: rangeStart2, range_end: rangeEnd2, plotStyle: selectedPlotStyle })
     .then((response) => {
         // Wait for a brief moment before scrolling
         setTimeout(() => {

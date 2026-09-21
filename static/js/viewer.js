@@ -124,9 +124,10 @@ function showPlot2() {
     var fixedThirdConditionValue = fixedThirdCondition ? fixedThirdConditionValueDropdown.options[fixedThirdConditionValueDropdown.selectedIndex].value : null;
     var selectedParameter = parametersDropdown.options[parametersDropdown.selectedIndex].value;
     var selectedNormalization = normalizationDropdown.options[normalizationDropdown.selectedIndex].value;
+    var selectedPlotStyle = document.querySelector('input[name="plotStyle"]:checked').value;
 
-    
-    axios.post('/plot2', { condition: selectedCondition, secondCondition: selectedSecondCondition, thirdCondition: selectedThirdCondition, fixedThirdCondition: fixedThirdCondition, fixedThirdConditionValue: fixedThirdConditionValue, parameter: selectedParameter, percentage: percentageInput, yMin: yMinInput, yMax: yMaxInput, normalization: selectedNormalization, range_start: rangeStart, range_end: rangeEnd })
+
+    axios.post('/plot2', { condition: selectedCondition, secondCondition: selectedSecondCondition, thirdCondition: selectedThirdCondition, fixedThirdCondition: fixedThirdCondition, fixedThirdConditionValue: fixedThirdConditionValue, parameter: selectedParameter, percentage: percentageInput, yMin: yMinInput, yMax: yMaxInput, normalization: selectedNormalization, range_start: rangeStart, range_end: rangeEnd, plotStyle: selectedPlotStyle })
     .then((response) => {
         const plotArea2 = document.getElementById('plotArea2');
         // Clear out the old images

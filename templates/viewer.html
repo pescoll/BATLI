@@ -82,9 +82,16 @@
         <input type="number" id="rangeEnd" name="rangeEnd" min="0" value="4" style="font-size: 0.6em;">
     </div>
     <div>
+        <label style="font-size: 0.8em;">Graph style :</label>
+        <input type="radio" id="styleOriginal" name="plotStyle" value="original" checked>
+        <label for="styleOriginal" style="font-size: 0.8em;">Original BATLI</label>
+        <input type="radio" id="stylePublication" name="plotStyle" value="publication">
+        <label for="stylePublication" style="font-size: 0.8em;">Publication mode</label>
+    </div>
+    <div>
         <button id="showPlot2Button" onclick="showPlot2()">Show Single Cell Plots</button>
         <a href="/download" style="font-size: 0.8em;">Download results</a>
-    </div>      
+    </div>
     <div id="plotArea2" style="display: none;"> <!-- This is the new plot area for plot 2 -->
         <img id="plotImage2" src="">
     </div>

@@ -63,7 +63,19 @@
         <option value="delta">delta</option>
     </select>
     <label for="thresholdInput" style="font-size: 0.8em;" width="120px">Threshold :</label>
-    <input type="number" id="thresholdInput" min="-1000" max="1000" value="15" style="font-size: 0.6em;">
+    <input type="number" step="any" id="thresholdInput" min="-1000" max="1000" value="15" style="font-size: 0.6em;">
+    <label for="thresholdInput2" style="font-size: 0.8em;">Threshold class 2 (optional) :</label>
+    <input type="number" step="any" id="thresholdInput2" min="-1000" max="1000" placeholder="none" style="font-size: 0.6em;">
+    <br>
+    <label for="secondClassParamDropdown" style="font-size: 0.8em;">2nd classification parameter (optional) :</label>
+    <select id="secondClassParamDropdown" style="font-size: 0.8em;">
+        <option value="none">None</option>
+        <!-- Options will be populated dynamically -->
+    </select>
+    <label for="thresholdInputB1" style="font-size: 0.8em;">Threshold :</label>
+    <input type="number" step="any" id="thresholdInputB1" min="-1000" max="1000" placeholder="none" style="font-size: 0.6em;">
+    <label for="thresholdInputB2" style="font-size: 0.8em;">Threshold class 2 :</label>
+    <input type="number" step="any" id="thresholdInputB2" min="-1000" max="1000" placeholder="none" style="font-size: 0.6em;">
     <div id="customRange" style="display: none;">
         <label for="rangeStart" style="font-size: 0.8em;">custom: Range Start:</label>
         <input type="number" id="rangeStart" name="rangeStart" min="0" value="0" style="font-size: 0.6em;">

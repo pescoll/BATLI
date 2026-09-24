@@ -111,13 +111,42 @@ def find_infected_column(df):
             return col
     return None
 
-def classification_tags(threshold, percentage):
-    # Short tags describing the classification settings used in plot3,
-    # e.g. title tag 'th:15,50%' and filename-safe tag 'th15_50' (negative: 'th-14_90')
-    threshold_str = f"{float(threshold):g}"
-    title_tag = f"th:{threshold_str},{percentage}%"
-    file_tag = f"th{threshold_str.replace('.', 'p')}_{percentage}"
+def passes_threshold(dA, th):
+    # Positive threshold: pass if the value increases by at least `th`.
+    # Negative threshold: pass if the value decreases by at least |th|.
+    return dA >= th if th >= 0 else dA <= th
+
+def classification_tags(percentage, threshold, threshold2=None, threshold_b1=None, threshold_b2=None):
+    # Short tags describing the classification settings used in plot3.
+    # Examples (title tag -> filename tag):
+    #   classic 2-class:        'th:15,50%'           -> 'th15_50'
+    #   3-class:                'th:15/-14,50%'       -> 'th15_-14_50'
+    #   2 parameters:           'th:15&-10,50%'       -> 'th15+-10_50'
+    #   2 params + 3 classes:   'th:15&-10/-14&5,50%' -> 'th15+-10_-14+5_50'
+    # ('&' joins the two parameter thresholds of one class, '/' separates class 1 from class 2)
+    def fmt(v):
+        return f"{float(v):g}"
+    th_str = fmt(threshold)
+    if threshold_b1 is not None:
+        th_str += '&' + fmt(threshold_b1)
+    if threshold2 is not None:
+        part2 = fmt(threshold2)
+        if threshold_b2 is not None:
+            part2 += '&' + fmt(threshold_b2)
+        th_str += '/' + part2
+    title_tag = f"th:{th_str},{percentage}%"
+    file_tag = 'th' + th_str.replace('&', '+').replace('/', '_').replace('.', 'p') + f"_{percentage}"
     return title_tag, file_tag
+
+def class_summary(_df, include_class_2=False):
+    # Per-condition class counts for plot titles, e.g. 'class_1 = 86 of 1215 cells - 7.08%'
+    total = _df['cell_lbl'].nunique()
+    parts = []
+    for cls in ([1, 2] if include_class_2 else [1]):
+        n = _df[_df['growth'] == cls]['cell_lbl'].nunique()
+        pct = format((n * 100) / total, '.2f') if total else '0.00'
+        parts.append(f"class_{cls} = {n} of {total} cells - {pct}%")
+    return ', '.join(parts)
 
 @app.route('/')
 def index():
@@ -721,7 +750,31 @@ def plot3():
     percentage = int(data['percentage'])
     threshold = float(data['threshold'])
 
+    # Optional second threshold on the same parameter -> defines class 2 (3-class mode)
+    threshold2 = data.get('threshold2')
+    threshold2 = float(threshold2) if threshold2 is not None else None
+
+    # Optional second classification parameter with its own threshold(s).
+    # A class then requires BOTH parameter conditions to pass (AND logic).
+    param2 = data.get('secondClassParameter')
+    if param2 in (None, '', 'none'):
+        param2 = None
+    threshold_b1 = data.get('thresholdB1')
+    threshold_b1 = float(threshold_b1) if threshold_b1 is not None else None
+    threshold_b2 = data.get('thresholdB2')
+    threshold_b2 = float(threshold_b2) if threshold_b2 is not None else None
+    if param2 is not None and threshold_b1 is None:
+        return jsonify({'message': 'A second classification parameter was selected but its threshold is missing. Please provide it or set the parameter to None.'}), 400
+    if param2 is None:
+        threshold_b1 = None
+        threshold_b2 = None
+    if threshold2 is None:
+        threshold_b2 = None
+
     cells_df = pd.read_csv(os.path.join(app.config['UPLOAD_FOLDER'], current_filename))
+
+    if param2 is not None and param2 not in cells_df.columns:
+        return jsonify({'message': f'Second classification parameter "{param2}" not found in the dataset.'}), 400
 
     # Analyzing only infected cells in Infected wells (column can be named 'infected' or 'IF')
     if 'bacteria' in cells_df.columns:
@@ -776,7 +829,8 @@ def plot3():
     plot_urls_backward = []
 
     # lists that hold cells ids:
-    class_1 = []      
+    class_2 = []
+    class_1 = []
     class_0 = []
 
     filtered_cells_df.sort_values(by=['cell_lbl', 't'], inplace=True)  # Sort by 'cell_lbl' and 't'
@@ -793,35 +847,44 @@ def plot3():
         # array[-N:] -> returns last N elements
         # array[0:N] -> returns first N elements
         dA = float(growth[-Np:].mean() - growth[0:Np].mean())
-        # Positive threshold: class_1 if the value increases by at least `threshold`.
-        # Negative threshold: class_1 if the value decreases by at least |threshold|
-        # (e.g. -14 selects cells whose value drops 14 or more from beginning to end).
-        if threshold >= 0:
-            is_class_1 = dA >= threshold
-        else:
-            is_class_1 = dA <= threshold
-        if is_class_1:
+        # Change of the optional second classification parameter
+        dA2 = None
+        if param2 is not None:
+            growth2 = gr[param2].values
+            dA2 = float(growth2[-Np:].mean() - growth2[0:Np].mean())
+
+        # Thresholds work in both directions (see passes_threshold):
+        # positive = increase of at least th, negative = decrease of at least |th|.
+        # Class 2 (if enabled) is evaluated first, then class 1, otherwise class 0.
+        # With a second parameter, a class requires BOTH parameter conditions (AND).
+        if threshold2 is not None and passes_threshold(dA, threshold2) and \
+           (threshold_b2 is None or passes_threshold(dA2, threshold_b2)):
+            class_2.append( lbl )
+        elif passes_threshold(dA, threshold) and \
+             (threshold_b1 is None or passes_threshold(dA2, threshold_b1)):
             class_1.append( lbl )
             print(lbl, growth[-Np:].mean(), growth[0:Np].mean(), dA)
         else:
             class_0.append( lbl )
 
-    # find indices of those cells that are in the list of RB cells
-    inds = filtered_cells_df['cell_lbl'].isin( class_1 )
-
-    # add column growth:
-    filtered_cells_df['growth'] = 0 # 0 by default
-    filtered_cells_df.loc[inds, 'growth'] = 1  # set to 1 those that are from rb_cells_lbl list
+    # add column growth: 0 by default, 1 for class_1 cells, 2 for class_2 cells
+    filtered_cells_df['growth'] = 0
+    filtered_cells_df.loc[filtered_cells_df['cell_lbl'].isin( class_1 ), 'growth'] = 1
+    filtered_cells_df.loc[filtered_cells_df['cell_lbl'].isin( class_2 ), 'growth'] = 2
     filtered_cells_df.to_csv(f"computed_data/backward/table_single_cells_filtered.csv")
 
     # Save the classification settings so plot4 can tag its graphs with them
     with open('computed_data/backward/classification_info.json', 'w') as f:
-        json.dump({'threshold': threshold, 'percentage': percentage}, f)
+        json.dump({'threshold': threshold, 'percentage': percentage,
+                   'threshold2': threshold2, 'parameter': selected_parameter,
+                   'parameter2': param2, 'threshold_b1': threshold_b1,
+                   'threshold_b2': threshold_b2}, f)
 
     # Short tags describing the classification settings, for titles and filenames
-    title_tag, file_tag = classification_tags(threshold, percentage)
+    title_tag, file_tag = classification_tags(percentage, threshold, threshold2, threshold_b1, threshold_b2)
 
-    print( 'Class_1 cells/total cells: %d / %d'%(len(class_1), len(class_1)+len(class_0)) )
+    total_cells = len(class_0) + len(class_1) + len(class_2)
+    print( 'Class_1 / class_2 / total cells: %d / %d / %d'%(len(class_1), len(class_2), total_cells) )
     print(class_1)
     try:
         if selected_second_condition and selected_second_condition != 'none':
@@ -835,23 +898,11 @@ def plot3():
             if len(condition_values) == 2:
                 _df = filtered_cells_df[(filtered_cells_df[selected_condition] == condition_values[0]) & (filtered_cells_df[selected_second_condition] == condition_values[1])]
                 num_cells = len(_df['cell_lbl'].unique())
-                num_class_1  = len(_df[_df['growth'] == 1]['cell_lbl'].unique())
-                num_class_0 = len(_df[_df['growth'] == 0]['cell_lbl'].unique())          
-                print(num_class_1)
-                num_class_total = num_class_1+num_class_0
-                percentage_class_1 = (num_class_1*100)/num_class_total
-                percentage_class_1 = format(percentage_class_1, '.2f')
-                plot_title = f"{condition_values[0]} - {condition_values[1]} (n = {num_cells} cells, class_1 = {num_class_1} of {num_class_total} cells - {percentage_class_1}%) {title_tag}"  # Set the plot title with both condition values
+                plot_title = f"{condition_values[0]} - {condition_values[1]} (n = {num_cells} cells, {class_summary(_df, threshold2 is not None)}) {title_tag}"  # Set the plot title with both condition values
             elif len(condition_values) == 1:
                 _df = filtered_cells_df[filtered_cells_df[selected_condition] == condition_values[0]]
                 num_cells = len(_df['cell_lbl'].unique())
-                num_class_1  = len(_df[_df['growth'] == 1]['cell_lbl'].unique())
-                num_class_0 = len(_df[_df['growth'] == 0]['cell_lbl'].unique())
-                print(num_class_1)
-                num_class_total = num_class_1+num_class_0
-                percentage_class_1 = (num_class_1*100)/num_class_total
-                percentage_class_1 = format(percentage_class_1, '.2f')
-                plot_title = f"{condition_values[0]} (n = {num_cells} cells, class_1 = {num_class_1} of {num_class_total} cells - {percentage_class_1}%) {title_tag}"  # Set the plot title with both condition values
+                plot_title = f"{condition_values[0]} (n = {num_cells} cells, {class_summary(_df, threshold2 is not None)}) {title_tag}"  # Set the plot title with one condition value
             else:
                 continue  # if there are no conditions, continue to the next iteration
 
@@ -901,15 +952,19 @@ def plot3():
             # Set the x-axis limit for each plot
             ax.set_xlim(t_min, t_max)
    
-            # select a subset of data for class_1 and class_0
+            # select a subset of data for each class
+            _df_class_2 = _df[_df['growth']==2]
             _df_class_1 = _df[_df['growth']==1]
-            _df_class_0 = _df[_df['growth']==0]                
+            _df_class_0 = _df[_df['growth']==0]
 
             for lbl, gr in _df_class_0.groupby('cell_lbl'):
                     ax.plot( gr['t'], gr[selected_parameter], 'b-', alpha=0.05)
-  
+
             for lbl, gr in _df_class_1.groupby('cell_lbl'):
-                    ax.plot( gr['t'], gr[selected_parameter], 'r-', alpha=0.5 ) 
+                    ax.plot( gr['t'], gr[selected_parameter], 'r-', alpha=0.5 )
+
+            for lbl, gr in _df_class_2.groupby('cell_lbl'):
+                    ax.plot( gr['t'], gr[selected_parameter], 'g-', alpha=0.5 )
             
             timestamp = datetime.datetime.now().strftime("%d%m%y-%H%M%S")
             condition_names = '_'.join(str(condition) for condition in condition_values)
@@ -967,15 +1022,24 @@ def plot4():
 
     cells_df = pd.read_csv(path)
 
-    # Load the classification settings saved by plot3 (threshold and % track length)
+    # Load the classification settings saved by plot3 (thresholds and % track length)
     # to tag titles and filenames of the backtracking graphs
     title_tag = ''
     file_tag = ''
+    class_info = None
     class_info_path = os.path.join(directory, 'classification_info.json')
     if os.path.exists(class_info_path):
         with open(class_info_path, 'r') as f:
             class_info = json.load(f)
-        title_tag, file_tag = classification_tags(class_info['threshold'], class_info['percentage'])
+        title_tag, file_tag = classification_tags(class_info['percentage'],
+                                                  class_info['threshold'],
+                                                  class_info.get('threshold2'),
+                                                  class_info.get('threshold_b1'),
+                                                  class_info.get('threshold_b2'))
+
+    # Whether the classification used 3 classes (0, 1, 2)
+    include_class_2 = bool((class_info is not None and class_info.get('threshold2') is not None)
+                           or (cells_df['growth'] == 2).any())
 
     # If 'bacteria' column exists, analyze only infected cells in infected wells
     # (infected-status column can be named 'infected' or 'IF')
@@ -1034,21 +1098,11 @@ def plot4():
             if len(condition_values) == 2:
                 _df = filtered_cells_df[(filtered_cells_df[selected_condition] == condition_values[0]) & (filtered_cells_df[selected_second_condition] == condition_values[1])]
                 num_cells = len(_df['cell_lbl'].unique())
-                num_class_1  = len(_df[_df['growth'] == 1]['cell_lbl'].unique())
-                num_class_0 = len(_df[_df['growth'] == 0]['cell_lbl'].unique())          
-                num_class_total = num_class_1+num_class_0
-                percentage_class_1 = (num_class_1*100)/num_class_total
-                percentage_class_1 = format(percentage_class_1, '.2f')
-                plot_title = f"{condition_values[0]} - {condition_values[1]} (n = {num_cells} cells, class_1 = {num_class_1} of {num_class_total} cells - {percentage_class_1}%) {title_tag}"  # Set the plot title with both condition values
+                plot_title = f"{condition_values[0]} - {condition_values[1]} (n = {num_cells} cells, {class_summary(_df, include_class_2)}) {title_tag}"  # Set the plot title with both condition values
             elif len(condition_values) == 1:
                 _df = filtered_cells_df[filtered_cells_df[selected_condition] == condition_values[0]]
                 num_cells = len(_df['cell_lbl'].unique())
-                num_class_1  = len(_df[_df['growth'] == 1]['cell_lbl'].unique())
-                num_class_0 = len(_df[_df['growth'] == 0]['cell_lbl'].unique())
-                num_class_total = num_class_1+num_class_0
-                percentage_class_1 = (num_class_1*100)/num_class_total
-                percentage_class_1 = format(percentage_class_1, '.2f')
-                plot_title = f"{condition_values[0]} (n = {num_cells} cells, class_1 = {num_class_1} of {num_class_total} cells - {percentage_class_1}%) {title_tag}"  # Set the plot title with both condition values
+                plot_title = f"{condition_values[0]} (n = {num_cells} cells, {class_summary(_df, include_class_2)}) {title_tag}"  # Set the plot title with one condition value
             else:
                 continue  # if there are no conditions, continue to the next iteration
 
@@ -1110,31 +1164,26 @@ def plot4():
             # Set the x-axis limit for each plot and colours
             ax.set_xlim(t_min, t_max)
 
-            # Prepare color palette
-            growth_color_map = {0: 'blue', 1: 'red'}
-
             if plot_style == 'publication':
                 # Publication mode: darker colors, thicker/more visible traces, no median overlay or legend
+                pub_colors = {0: np.array( (51, 153, 255) )/255,   # class_0 blue
+                              1: np.array( (147, 19, 4) )/255,     # class_1 dark red
+                              2: np.array( (34, 139, 34) )/255}    # class_2 dark green
                 for lbl, gr in _df.groupby('cell_lbl'):
-                    if gr['growth'].unique() == 0:
-                        # settings for class_0 cells plot
-                        col = np.array( (51, 153, 255) )/255 # publication blue
-                    else:
-                        # settings for class_1 cells plot
-                        col = np.array( (147, 19, 4) )/255 # publication dark red
+                    col = pub_colors.get(int(gr['growth'].iloc[0]), pub_colors[0])
                     ax.plot( gr['t'].values, gr[selected_parameter].values, '-', color = col, alpha=0.2, lw=2 )
             else:
                 # Original BATLI graphs
+                orig_colors = {0: np.array( (72, 219, 251) )/255,  # class_0 blue
+                               1: np.array( (238, 32, 77) )/255,   # class_1 red
+                               2: np.array( (50, 205, 50) )/255}   # class_2 green
                 for lbl, gr in _df.groupby('cell_lbl'):
-                    if gr['growth'].unique() == 0:
-                        # settings for class_0 cells plot
-                        col = np.array( (72, 219, 251) )/255 # color blue
-                    else:
-                        # settings for class_1 cells plot
-                        col = np.array( (238, 32, 77) )/255 # color red
+                    col = orig_colors.get(int(gr['growth'].iloc[0]), orig_colors[0])
                     ax.plot( gr['t'].values, gr[selected_parameter].values, '-', color = col, alpha=0.1, lw=1 )
 
-                # population average
+                # population average (palette restricted to the classes present in this condition)
+                present_classes = sorted(_df['growth'].unique())
+                growth_color_map = {k: v for k, v in {0: 'blue', 1: 'red', 2: 'green'}.items() if k in present_classes}
                 sns.lineplot( data=_df, x='t', y=selected_parameter,
                          hue='growth', palette=growth_color_map,
                          ax=ax, linewidth=2, estimator=np.median )

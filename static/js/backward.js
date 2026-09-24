@@ -5,6 +5,7 @@ var firstConditionDropdown = document.getElementById('conditionsDropdown');
 var secondConditionDropdown = document.getElementById('secondConditionDropdown');
 var parametersDropdown = document.getElementById('parametersDropdown');
 var normalizationDropdown = document.getElementById('normalizationDropdown');
+var secondClassParamDropdown = document.getElementById('secondClassParamDropdown');
 
 axios.get('/get_parameter_names_backward_1')
     .then((response) => {
@@ -17,6 +18,12 @@ axios.get('/get_parameter_names_backward_1')
             var option = document.createElement('option');
             option.text = col;
             parametersDropdown.add(option);
+        });
+        // Populate the optional 2nd classification parameter dropdown with the same parameters
+        response.data.column_names.forEach((col) => {
+            var option = document.createElement('option');
+            option.text = col;
+            secondClassParamDropdown.add(option);
         });
 
         // Attach onchange event after firstConditionDropdown is populated
@@ -64,13 +71,28 @@ function showPlot3() {
     var rangeEnd = rangeEndInput.value;
     var thresholdInput = parseFloat(document.getElementById('thresholdInput').value);
 
+    // Optional class-2 threshold (3-class mode) and optional 2nd classification parameter
+    var threshold2Raw = document.getElementById('thresholdInput2').value;
+    var threshold2 = threshold2Raw === '' ? null : parseFloat(threshold2Raw);
+    var secondClassParameter = secondClassParamDropdown.value === 'none' ? null : secondClassParamDropdown.value;
+    var thresholdB1Raw = document.getElementById('thresholdInputB1').value;
+    var thresholdB1 = thresholdB1Raw === '' ? null : parseFloat(thresholdB1Raw);
+    var thresholdB2Raw = document.getElementById('thresholdInputB2').value;
+    var thresholdB2 = thresholdB2Raw === '' ? null : parseFloat(thresholdB2Raw);
+
+    if (secondClassParameter !== null && thresholdB1 === null) {
+        alert('Please provide a threshold for the 2nd classification parameter (or set it back to None).');
+        document.getElementById('loadingMessage').style.display = 'none';
+        return;
+    }
+
     var selectedCondition = firstConditionDropdown.options[firstConditionDropdown.selectedIndex].value;
     var selectedSecondCondition = secondConditionDropdown.options[secondConditionDropdown.selectedIndex].value;
     var selectedParameter = parametersDropdown.options[parametersDropdown.selectedIndex].value;
     var selectedNormalization = normalizationDropdown.options[normalizationDropdown.selectedIndex].value;
 
-    
-    axios.post('/plot3', { condition: selectedCondition, secondCondition: selectedSecondCondition, parameter: selectedParameter, percentage: percentageInput, yMin: yMinInput, yMax: yMaxInput, normalization: selectedNormalization, range_start: rangeStart, range_end: rangeEnd, threshold: thresholdInput })
+
+    axios.post('/plot3', { condition: selectedCondition, secondCondition: selectedSecondCondition, parameter: selectedParameter, percentage: percentageInput, yMin: yMinInput, yMax: yMaxInput, normalization: selectedNormalization, range_start: rangeStart, range_end: rangeEnd, threshold: thresholdInput, threshold2: threshold2, secondClassParameter: secondClassParameter, thresholdB1: thresholdB1, thresholdB2: thresholdB2 })
     .then((response) => {
         const plotArea3 = document.getElementById('plotArea3');
         // // Clear out the old images
@@ -87,6 +109,10 @@ function showPlot3() {
     })
     .catch((error) => {
         console.log(error);
+        document.getElementById('loadingMessage').style.display = 'none';
+        if (error.response && error.response.status === 400) {
+            alert(error.response.data.message);
+        }
     });
 }
     

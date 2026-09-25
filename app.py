@@ -746,6 +746,12 @@ def plot3():
     data = request.get_json()
     selected_condition = data['condition']
     selected_second_condition = data.get('secondCondition')  # This will be None if not provided
+    selected_third_condition = data.get('thirdCondition')  # This will be None if not provided
+    fixed_third_condition = data.get('fixedThirdCondition')
+    if isinstance(fixed_third_condition, str):
+        fixed_third_condition = fixed_third_condition.lower() == 'true'
+    fixed_third_condition = bool(fixed_third_condition)
+    fixed_third_condition_value = data.get('fixedThirdConditionValue')
     selected_parameter = data['parameter']
     percentage = int(data['percentage'])
     threshold = float(data['threshold'])
@@ -782,6 +788,20 @@ def plot3():
         if infected_col is not None:
             print(f'Analyzing infection! (infected-status column: {infected_col})')
             cells_df = cells_df[~((cells_df['bacteria'] != 'NI') & (cells_df[infected_col] == 0))]
+
+    # If the third condition is fixed, restrict the whole analysis (including the
+    # classification) to the cells matching the fixed value
+    third_condition_value = None
+    if fixed_third_condition:
+        if not selected_third_condition or selected_third_condition == 'none':
+            return jsonify({'message': 'Third condition is fixed but no third condition was selected. Please select a third condition or uncheck the fixed third condition option.'}), 400
+        if selected_third_condition not in cells_df.columns:
+            return jsonify({'message': f'Third condition "{selected_third_condition}" not found in the dataset.'}), 400
+        third_condition_type = type(cells_df[selected_third_condition].iloc[0])
+        third_condition_value = third_condition_type(fixed_third_condition_value)
+        cells_df = cells_df[cells_df[selected_third_condition] == third_condition_value]
+        if cells_df.empty:
+            return jsonify({'message': f'No cells found for {selected_third_condition} = {fixed_third_condition_value}. Please adjust your selection.'}), 400
 
     # Delete old backward_plot files
     for backward_plot_file in glob.glob('computed_data/backward/plot_*.png'):
@@ -887,24 +907,29 @@ def plot3():
     print( 'Class_1 / class_2 / total cells: %d / %d / %d'%(len(class_1), len(class_2), total_cells) )
     print(class_1)
     try:
+        # Columns whose value combinations define one plot each. The third condition
+        # joins the combinations only when it is not fixed (fixed = already filtered).
+        combo_cols = [selected_condition]
         if selected_second_condition and selected_second_condition != 'none':
-            condition_combinations = filtered_cells_df[[selected_condition, selected_second_condition]].drop_duplicates().values.tolist()
-        else:
-            condition_combinations = [(value,) for value in filtered_cells_df[selected_condition].unique()]
+            combo_cols.append(selected_second_condition)
+        if (not fixed_third_condition) and selected_third_condition and selected_third_condition != 'none':
+            combo_cols.append(selected_third_condition)
+        condition_combinations = filtered_cells_df[combo_cols].drop_duplicates().values.tolist()
 
         print(f"Condition combinations: {condition_combinations}")  # print to debug
 
         for condition_values in condition_combinations:
-            if len(condition_values) == 2:
-                _df = filtered_cells_df[(filtered_cells_df[selected_condition] == condition_values[0]) & (filtered_cells_df[selected_second_condition] == condition_values[1])]
-                num_cells = len(_df['cell_lbl'].unique())
-                plot_title = f"{condition_values[0]} - {condition_values[1]} (n = {num_cells} cells, {class_summary(_df, threshold2 is not None)}) {title_tag}"  # Set the plot title with both condition values
-            elif len(condition_values) == 1:
-                _df = filtered_cells_df[filtered_cells_df[selected_condition] == condition_values[0]]
-                num_cells = len(_df['cell_lbl'].unique())
-                plot_title = f"{condition_values[0]} (n = {num_cells} cells, {class_summary(_df, threshold2 is not None)}) {title_tag}"  # Set the plot title with one condition value
-            else:
-                continue  # if there are no conditions, continue to the next iteration
+            mask = pd.Series(True, index=filtered_cells_df.index)
+            for col, val in zip(combo_cols, condition_values):
+                mask &= (filtered_cells_df[col] == val)
+            _df = filtered_cells_df[mask]
+            if _df.empty:
+                continue
+            num_cells = len(_df['cell_lbl'].unique())
+            title_values = [str(v) for v in condition_values]
+            if fixed_third_condition:
+                title_values.append(str(third_condition_value))
+            plot_title = f"{' - '.join(title_values)} (n = {num_cells} cells, {class_summary(_df, threshold2 is not None)}) {title_tag}"
 
             _df = _df.copy()
             _df['t'] = _df['t'].astype(int)
@@ -967,7 +992,7 @@ def plot3():
                     ax.plot( gr['t'], gr[selected_parameter], 'g-', alpha=0.5 )
             
             timestamp = datetime.datetime.now().strftime("%d%m%y-%H%M%S")
-            condition_names = '_'.join(str(condition) for condition in condition_values)
+            condition_names = '_'.join(title_values)
             plot3_path = f"plot_backward_classes_{condition_names}_{file_tag}_{current_filename}_{timestamp}.png"
             _df.to_csv(f"computed_data/backward/table_{plot3_path.split('.')[0]}.csv")
             plt.savefig('computed_data/backward/' + plot3_path)
@@ -1011,6 +1036,12 @@ def plot4():
     data = request.get_json()
     selected_condition = data['condition']
     selected_second_condition = data.get('secondCondition')  # This will be None if not provided
+    selected_third_condition = data.get('thirdCondition')  # This will be None if not provided
+    fixed_third_condition = data.get('fixedThirdCondition')
+    if isinstance(fixed_third_condition, str):
+        fixed_third_condition = fixed_third_condition.lower() == 'true'
+    fixed_third_condition = bool(fixed_third_condition)
+    fixed_third_condition_value = data.get('fixedThirdConditionValue')
     selected_parameter = data['parameter']
     percentage = int(data['percentage'])
     plot_style = data.get('plotStyle', 'original')  # 'original' (BATLI classic) or 'publication'
@@ -1048,6 +1079,19 @@ def plot4():
         if infected_col is not None:
             print(f'Analyzing infection! (infected-status column: {infected_col})')
             cells_df = cells_df[~((cells_df['bacteria'] != 'NI') & (cells_df[infected_col] == 0))]
+
+    # If the third condition is fixed, restrict the plots to the cells matching the fixed value
+    third_condition_value = None
+    if fixed_third_condition:
+        if not selected_third_condition or selected_third_condition == 'none':
+            return jsonify({'message': 'Third condition is fixed but no third condition was selected. Please select a third condition or uncheck the fixed third condition option.'}), 400
+        if selected_third_condition not in cells_df.columns:
+            return jsonify({'message': f'Third condition "{selected_third_condition}" not found in the dataset.'}), 400
+        third_condition_type = type(cells_df[selected_third_condition].iloc[0])
+        third_condition_value = third_condition_type(fixed_third_condition_value)
+        cells_df = cells_df[cells_df[selected_third_condition] == third_condition_value]
+        if cells_df.empty:
+            return jsonify({'message': f'No cells found for {selected_third_condition} = {fixed_third_condition_value}. Please adjust your selection.'}), 400
 
     # Find the global minimum and maximum 't' values
     t_min = cells_df['t'].min()
@@ -1087,24 +1131,29 @@ def plot4():
     plot_urls_backward = []
 
     try:
+        # Columns whose value combinations define one plot each. The third condition
+        # joins the combinations only when it is not fixed (fixed = already filtered).
+        combo_cols = [selected_condition]
         if selected_second_condition and selected_second_condition != 'none':
-            condition_combinations = filtered_cells_df[[selected_condition, selected_second_condition]].drop_duplicates().values.tolist()
-        else:
-            condition_combinations = [(value,) for value in filtered_cells_df[selected_condition].unique()]
+            combo_cols.append(selected_second_condition)
+        if (not fixed_third_condition) and selected_third_condition and selected_third_condition != 'none':
+            combo_cols.append(selected_third_condition)
+        condition_combinations = filtered_cells_df[combo_cols].drop_duplicates().values.tolist()
 
         print(f"Condition combinations: {condition_combinations}")  # print to debug
 
         for condition_values in condition_combinations:
-            if len(condition_values) == 2:
-                _df = filtered_cells_df[(filtered_cells_df[selected_condition] == condition_values[0]) & (filtered_cells_df[selected_second_condition] == condition_values[1])]
-                num_cells = len(_df['cell_lbl'].unique())
-                plot_title = f"{condition_values[0]} - {condition_values[1]} (n = {num_cells} cells, {class_summary(_df, include_class_2)}) {title_tag}"  # Set the plot title with both condition values
-            elif len(condition_values) == 1:
-                _df = filtered_cells_df[filtered_cells_df[selected_condition] == condition_values[0]]
-                num_cells = len(_df['cell_lbl'].unique())
-                plot_title = f"{condition_values[0]} (n = {num_cells} cells, {class_summary(_df, include_class_2)}) {title_tag}"  # Set the plot title with one condition value
-            else:
-                continue  # if there are no conditions, continue to the next iteration
+            mask = pd.Series(True, index=filtered_cells_df.index)
+            for col, val in zip(combo_cols, condition_values):
+                mask &= (filtered_cells_df[col] == val)
+            _df = filtered_cells_df[mask]
+            if _df.empty:
+                continue
+            num_cells = len(_df['cell_lbl'].unique())
+            title_values = [str(v) for v in condition_values]
+            if fixed_third_condition:
+                title_values.append(str(third_condition_value))
+            plot_title = f"{' - '.join(title_values)} (n = {num_cells} cells, {class_summary(_df, include_class_2)}) {title_tag}"
 
             _df = _df.copy()
             _df['t'] = _df['t'].astype(int)
@@ -1192,7 +1241,7 @@ def plot4():
                 ax.legend(loc='upper right')
 
             timestamp = datetime.datetime.now().strftime("%d%m%y-%H%M%S")
-            condition_names = '_'.join(str(condition) for condition in condition_values)
+            condition_names = '_'.join(title_values)
             file_tag_part = f"{file_tag}_" if file_tag else ""
             plot4_path = f"plot_backward_{selected_parameter}_{condition_names}_{file_tag_part}{current_filename}_{timestamp}.png"
             _df.to_csv(f"computed_data/backward/table_{plot4_path.split('.')[0]}.csv")

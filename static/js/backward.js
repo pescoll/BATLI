@@ -6,6 +6,8 @@ var secondConditionDropdown = document.getElementById('secondConditionDropdown')
 var parametersDropdown = document.getElementById('parametersDropdown');
 var normalizationDropdown = document.getElementById('normalizationDropdown');
 var secondClassParamDropdown = document.getElementById('secondClassParamDropdown');
+var thirdConditionDropdown = document.getElementById('thirdConditionDropdown');
+var fixedThirdConditionValueDropdown = document.getElementById('fixedThirdConditionValueDropdown');
 
 axios.get('/get_parameter_names_backward_1')
     .then((response) => {
@@ -28,15 +30,17 @@ axios.get('/get_parameter_names_backward_1')
 
         // Attach onchange event after firstConditionDropdown is populated
         firstConditionDropdown.onchange = function() {
-            // Clear the secondConditionDropdown options
+            // Clear the secondConditionDropdown and thirdConditionDropdown options
             secondConditionDropdown.innerHTML = '';
-            
+            thirdConditionDropdown.innerHTML = '';
+
             // Add the 'none' option
             var noneOption = document.createElement('option');
             noneOption.value = 'none';
             noneOption.text = 'None';
             secondConditionDropdown.add(noneOption);
-        
+            thirdConditionDropdown.add(noneOption.cloneNode(true));
+
             // Populate secondConditionDropdown based on the selected option in the firstConditionDropdown
             for (var i = 0; i < firstConditionDropdown.length; i++) {
                 if (firstConditionDropdown[i].value !== this.value) {
@@ -44,7 +48,36 @@ axios.get('/get_parameter_names_backward_1')
                     option.value = firstConditionDropdown[i].value;
                     option.text = firstConditionDropdown[i].text;
                     secondConditionDropdown.add(option);
+                    thirdConditionDropdown.add(option.cloneNode(true));
                 }
+            }
+        };
+
+        // Show/populate the fixed-value dropdown when the Fix checkbox is toggled
+        document.getElementById('fixedThirdCondition').onchange = function() {
+            if (this.checked) {
+                var selectedThirdCondition = thirdConditionDropdown.value;
+                if (!selectedThirdCondition || selectedThirdCondition === 'none') {
+                    alert('Please select a third condition before fixing it.');
+                    this.checked = false;
+                    return;
+                }
+                fixedThirdConditionValueDropdown.style.display = 'inline';
+                fixedThirdConditionValueDropdown.innerHTML = '';  // clear the options
+                axios.post('/get_third_condition_values', { condition: selectedThirdCondition })
+                    .then((response) => {
+                        response.data.unique_values.forEach((val) => {
+                            var option = document.createElement('option');
+                            option.value = val;
+                            option.text = val;
+                            fixedThirdConditionValueDropdown.add(option);
+                        });
+                    })
+                    .catch((error) => {
+                        console.log(error);
+                    });
+            } else {
+                fixedThirdConditionValueDropdown.style.display = 'none';
             }
         };
 
@@ -88,11 +121,19 @@ function showPlot3() {
 
     var selectedCondition = firstConditionDropdown.options[firstConditionDropdown.selectedIndex].value;
     var selectedSecondCondition = secondConditionDropdown.options[secondConditionDropdown.selectedIndex].value;
+    var selectedThirdCondition = thirdConditionDropdown.value === 'none' ? null : thirdConditionDropdown.value;
+    var fixedThirdCondition = document.getElementById('fixedThirdCondition').checked;
+    var fixedThirdConditionValue = fixedThirdCondition ? fixedThirdConditionValueDropdown.value : null;
     var selectedParameter = parametersDropdown.options[parametersDropdown.selectedIndex].value;
     var selectedNormalization = normalizationDropdown.options[normalizationDropdown.selectedIndex].value;
 
+    if (fixedThirdCondition && selectedThirdCondition === null) {
+        alert('Third condition is fixed but no third condition was selected. Please select one or uncheck Fix.');
+        document.getElementById('loadingMessage').style.display = 'none';
+        return;
+    }
 
-    axios.post('/plot3', { condition: selectedCondition, secondCondition: selectedSecondCondition, parameter: selectedParameter, percentage: percentageInput, yMin: yMinInput, yMax: yMaxInput, normalization: selectedNormalization, range_start: rangeStart, range_end: rangeEnd, threshold: thresholdInput, threshold2: threshold2, secondClassParameter: secondClassParameter, thresholdB1: thresholdB1, thresholdB2: thresholdB2 })
+    axios.post('/plot3', { condition: selectedCondition, secondCondition: selectedSecondCondition, thirdCondition: selectedThirdCondition, fixedThirdCondition: fixedThirdCondition, fixedThirdConditionValue: fixedThirdConditionValue, parameter: selectedParameter, percentage: percentageInput, yMin: yMinInput, yMax: yMaxInput, normalization: selectedNormalization, range_start: rangeStart, range_end: rangeEnd, threshold: thresholdInput, threshold2: threshold2, secondClassParameter: secondClassParameter, thresholdB1: thresholdB1, thresholdB2: thresholdB2 })
     .then((response) => {
         const plotArea3 = document.getElementById('plotArea3');
         // // Clear out the old images
@@ -129,6 +170,8 @@ document.getElementById('normalizationDropdown').addEventListener('change', func
 // These variables are used in both the onchange event and showPlot4
 var firstConditionDropdown2 = document.getElementById('conditionsDropdown2');
 var secondConditionDropdown2 = document.getElementById('secondConditionDropdown2');
+var thirdConditionDropdown2 = document.getElementById('thirdConditionDropdown2');
+var fixedThirdConditionValueDropdown2 = document.getElementById('fixedThirdConditionValueDropdown2');
 var parametersDropdown2 = document.getElementById('parametersDropdown2');
 var normalizationDropdown2 = document.getElementById('normalizationDropdown2');
 
@@ -138,6 +181,7 @@ function loadClasses() {
                 // Clear the dropdowns before populating them
                 firstConditionDropdown2.innerHTML = '';
                 secondConditionDropdown2.innerHTML = '';
+                thirdConditionDropdown2.innerHTML = '';
                 parametersDropdown2.innerHTML = '';
 
                 response.data.condition_cols.forEach((col) => {
@@ -153,15 +197,17 @@ function loadClasses() {
 
                 // Attach onchange event after firstConditionDropdown is populated
                 firstConditionDropdown2.onchange = function() {
-                    // Clear the secondConditionDropdown options
+                    // Clear the secondConditionDropdown and thirdConditionDropdown options
                     secondConditionDropdown2.innerHTML = '';
-            
+                    thirdConditionDropdown2.innerHTML = '';
+
                     // Add the 'none' option
                     var noneOption = document.createElement('option');
                     noneOption.value = 'none';
                     noneOption.text = 'None';
                     secondConditionDropdown2.add(noneOption);
-        
+                    thirdConditionDropdown2.add(noneOption.cloneNode(true));
+
                     // Populate secondConditionDropdown based on the selected option in the firstConditionDropdown
                     for (var i = 0; i < firstConditionDropdown2.length; i++) {
                         if (firstConditionDropdown2[i].value !== this.value) {
@@ -169,7 +215,36 @@ function loadClasses() {
                             option.value = firstConditionDropdown2[i].value;
                             option.text = firstConditionDropdown2[i].text;
                             secondConditionDropdown2.add(option);
+                            thirdConditionDropdown2.add(option.cloneNode(true));
                         }
+                    }
+                };
+
+                // Show/populate the fixed-value dropdown when the Fix checkbox is toggled
+                document.getElementById('fixedThirdCondition2').onchange = function() {
+                    if (this.checked) {
+                        var selectedThirdCondition2 = thirdConditionDropdown2.value;
+                        if (!selectedThirdCondition2 || selectedThirdCondition2 === 'none') {
+                            alert('Please select a third condition before fixing it.');
+                            this.checked = false;
+                            return;
+                        }
+                        fixedThirdConditionValueDropdown2.style.display = 'inline';
+                        fixedThirdConditionValueDropdown2.innerHTML = '';  // clear the options
+                        axios.post('/get_third_condition_values', { condition: selectedThirdCondition2 })
+                            .then((response) => {
+                                response.data.unique_values.forEach((val) => {
+                                    var option = document.createElement('option');
+                                    option.value = val;
+                                    option.text = val;
+                                    fixedThirdConditionValueDropdown2.add(option);
+                                });
+                            })
+                            .catch((error) => {
+                                console.log(error);
+                            });
+                    } else {
+                        fixedThirdConditionValueDropdown2.style.display = 'none';
                     }
                 };
 
@@ -198,12 +273,20 @@ function showPlot4() {
 
     var selectedCondition2 = firstConditionDropdown2.options[firstConditionDropdown2.selectedIndex].value;
     var selectedSecondCondition2 = secondConditionDropdown2.options[secondConditionDropdown2.selectedIndex].value;
+    var selectedThirdCondition2 = thirdConditionDropdown2.value === 'none' ? null : thirdConditionDropdown2.value;
+    var fixedThirdCondition2 = document.getElementById('fixedThirdCondition2').checked;
+    var fixedThirdConditionValue2 = fixedThirdCondition2 ? fixedThirdConditionValueDropdown2.value : null;
     var selectedParameter2 = parametersDropdown2.options[parametersDropdown2.selectedIndex].value;
     var selectedNormalization2 = normalizationDropdown2.options[normalizationDropdown2.selectedIndex].value;
     var selectedPlotStyle = document.querySelector('input[name="plotStyle"]:checked').value;
 
+    if (fixedThirdCondition2 && selectedThirdCondition2 === null) {
+        alert('Third condition is fixed but no third condition was selected. Please select one or uncheck Fix.');
+        document.getElementById('loadingMessage2').style.display = 'none';
+        return;
+    }
 
-    axios.post('/plot4', { condition: selectedCondition2, secondCondition: selectedSecondCondition2, parameter: selectedParameter2, percentage: percentageInput2, yMin: yMinInput2, yMax: yMaxInput2, normalization: selectedNormalization2, range_start: rangeStart2, range_end: rangeEnd2, plotStyle: selectedPlotStyle })
+    axios.post('/plot4', { condition: selectedCondition2, secondCondition: selectedSecondCondition2, thirdCondition: selectedThirdCondition2, fixedThirdCondition: fixedThirdCondition2, fixedThirdConditionValue: fixedThirdConditionValue2, parameter: selectedParameter2, percentage: percentageInput2, yMin: yMinInput2, yMax: yMaxInput2, normalization: selectedNormalization2, range_start: rangeStart2, range_end: rangeEnd2, plotStyle: selectedPlotStyle })
     .then((response) => {
         // Wait for a brief moment before scrolling
         setTimeout(() => {

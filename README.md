@@ -8,10 +8,25 @@ For more details, please refer to the [BATLI paper](https://www.nature.com/artic
 
 BATLI has been developed by Mariatou Dramé, Dmitry Ershov, Jean-Yves Tinevez and Pedro Escoll (Institut Pasteur, Paris)
 
+**Current version: 1.2**
+
+---
+
+## What's New in Version 1.2
+
+- Graph style toggle in Viewer and Backtracking: Original BATLI or Publication mode (square figures, larger fonts, darker class colors)
+- Classification into three classes (0, 1, 2) using an optional second threshold; class 2 is shown in green
+- Optional second classification parameter with its own threshold(s); a class then requires both conditions (e.g., TMRM sd/mean increase and CellROX sd/mean decrease)
+- Negative thresholds classify decreases (e.g., -14 selects cells whose value drops by 14 or more from beginning to end)
+- The classification threshold and minimum track length are shown in the titles and filenames of classification and backtracking graphs (e.g., th:15,50%)
+- Third condition (fixed or not) available in the Classification and Backtracking sections, as in the Viewer
+- The infected-status column can be named 'infected' or 'IF'
+
 ---
 
 ## Table of Contents
 
+- [What's New in Version 1.2](#whats-new-in-version-12)
 - [BATLI Modules](#batli-modules)
   - [Cleaner](#cleaner)
   - [Loader](#loader)

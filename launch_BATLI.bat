@@ -71,7 +71,7 @@ IF EXIST "%BATLI_DIR%" (
         git merge --ff-only FETCH_HEAD
         IF ERRORLEVEL 1 (
             ECHO The local BATLI code cannot be updated with a normal fast-forward.
-            ECHO Saving a backup of the current code state, then installing the GitHub version...
+            ECHO Saving a backup of tracked local code, then installing the GitHub version...
             CALL :BACKUP_CURRENT_CODE
             git reset --hard FETCH_HEAD
             IF ERRORLEVEL 1 (
@@ -234,7 +234,8 @@ FOR /F %%I IN ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd-HHmmss
 IF NOT DEFINED BACKUP_STAMP SET "BACKUP_STAMP=manual"
 SET "BACKUP_NAME=backup-before-update-!BACKUP_STAMP!-!RANDOM!"
 git branch "!BACKUP_NAME!" >nul 2>&1
-git stash push -u -m "!BACKUP_NAME!" >nul 2>&1
+git diff --quiet
+IF ERRORLEVEL 1 git stash push -m "!BACKUP_NAME!" >nul 2>&1
 ECHO Backup branch/stash name: !BACKUP_NAME!
 EXIT /B 0
 

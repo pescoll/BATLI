@@ -31,6 +31,10 @@ app = Flask(__name__)
 
 app.config['UPLOAD_FOLDER'] = 'user_data/'
 
+# Make sure the output folders exist (they are not shipped with the repository)
+for _folder in ('user_data', 'computed_data/plots', 'computed_data/tables', 'computed_data/backward'):
+    os.makedirs(_folder, exist_ok=True)
+
 def clean_dataframe(df, database_info):  # Basic cleaning and creation of unique well IDs and unique cell IDs
     population = database_info["Population"]
     prefix = population.replace("Population - ", "") + " - "
